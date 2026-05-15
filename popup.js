@@ -175,6 +175,44 @@ async function getSkipList() {
   });
 }
 
+// ── Ticket validation ────────────────────────────────────────────────────────
+async function validateTicket(ticketId) {
+  return new Promise(resolve => {
+    chrome.storage.local.get(['clickupToken', 'teamId'], async (r) => {
+      if (!r.clickupToken || !r.teamId) { resolve({ valid: false, name: null }); return; }
+      try {
+        const res = await fetch(
+          'https://api.clickup.com/api/v2/task/' + encodeURIComponent(ticketId) +
+          '?custom_task_ids=true&team_id=' + r.teamId,
+          { headers: { Authorization: r.clickupToken } }
+        );
+        if (!res.ok) { resolve({ valid: false, name: null }); return; }
+        const data = await res.json();
+        resolve({ valid: !!data.id, name: data.name || null });
+      } catch (_) { resolve({ valid: false, name: null }); }
+    });
+  });
+}
+
+function applyTicketValidation(li, input, validIcon, isValid, taskName) {
+  const checkbox = li.querySelector('.evt-check');
+  if (isValid) {
+    validIcon.textContent = '✔';
+    validIcon.style.color = '#f9e2af';
+    validIcon.title = taskName || '';
+    li.classList.remove('ticket-invalid');
+    if (checkbox) { checkbox.disabled = false; checkbox.checked = true; }
+    input.style.borderColor = '';
+  } else {
+    validIcon.textContent = '✖';
+    validIcon.style.color = '#f38ba8';
+    validIcon.title = 'Ticket not found in ClickUp';
+    li.classList.add('ticket-invalid');
+    if (checkbox) { checkbox.disabled = true; checkbox.checked = false; }
+    input.style.borderColor = '#f38ba8';
+  }
+}
+
 // ── Dropdown builder (shared by event list and timer) ─────────────────────────
 function buildDropdown(dropdown, items, onSelect) {
   while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
@@ -275,12 +313,15 @@ function renderEvents(events, skipList, clickupEntries) {
             '<button class="star-btn" data-ticket="' + (ticketId || '') + '" title="Favorite this ticket">\u2606</button>' +
           '</div>' : '') +
         (!skipped ?
-          '<div class="ticket-input-row"><div class="ticket-combo" data-index="' + i + '">' +
-            '<input type="text" class="ticket-manual" data-index="' + i +
-            '" placeholder="Ticket ID (e.g. CTK-1234)" autocomplete="off"' +
-            (ticketId ? ' value="' + ticketId + '"' : '') + ' />' +
-            '<ul class="ticket-dropdown" data-index="' + i + '"></ul>' +
-          '</div></div>' : '') +
+          '<div class="ticket-input-row">' +
+            '<div class="ticket-combo" data-index="' + i + '">' +
+              '<input type="text" class="ticket-manual" data-index="' + i +
+              '" placeholder="Ticket ID (e.g. CTK-1234)" autocomplete="off"' +
+              (ticketId ? ' value="' + ticketId + '"' : '') + ' />' +
+              '<ul class="ticket-dropdown" data-index="' + i + '"></ul>' +
+            '</div>' +
+            '<span class="ticket-valid-icon" data-index="' + i + '"></span>' +
+          '</div>' : '') +
       '</div>';
     ul.appendChild(li);
   });
@@ -305,12 +346,60 @@ function renderEvents(events, skipList, clickupEntries) {
     });
   });
 
-  // Wire ticket combo dropdowns
+  // Wire ticket combo dropdowns + validation
+  const prefilled = [];
   document.querySelectorAll('.ticket-manual').forEach(input => {
-    const idx      = input.dataset.index;
-    const dropdown = document.querySelector('.ticket-dropdown[data-index="' + idx + '"]');
-    if (!dropdown) return;
-    wireCombo(input, dropdown);
+    const idx       = input.dataset.index;
+    const dropdown  = document.querySelector('.ticket-dropdown[data-index="' + idx + '"]');
+    const validIcon = document.querySelector('.ticket-valid-icon[data-index="' + idx + '"]');
+    const li        = input.closest('.event-item');
+    if (!dropdown || !validIcon || !li) return;
+
+    let debounceTimer = null;
+
+    function runValidation(id) {
+      if (!id) {
+        validIcon.textContent = '';
+        input.style.borderColor = '';
+        const cb = li.querySelector('.evt-check');
+        if (cb) { cb.disabled = false; }
+        li.classList.remove('ticket-invalid');
+        return;
+      }
+      validIcon.textContent = '⏳';
+      validIcon.style.color = '#a6adc8';
+      validateTicket(id).then(({ valid, name }) => {
+        applyTicketValidation(li, input, validIcon, valid, name);
+      });
+    }
+
+    wireCombo(input, dropdown, (id) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      runValidation(id.trim().toUpperCase());
+    });
+
+    // On-demand validation when typing manually
+    input.addEventListener('input', () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      const id = input.value.trim().toUpperCase();
+      if (!id || !/^[A-Z]+-\d+$/.test(id)) { runValidation(''); return; }
+      debounceTimer = setTimeout(() => runValidation(id), 600);
+    });
+
+    // Queue pre-filled tickets for on-load validation
+    const preId = input.value.trim().toUpperCase();
+    if (preId) prefilled.push({ input, validIcon, li, id: preId });
+  });
+
+  // Validate pre-filled tickets on load with stagger to avoid rate limiting
+  prefilled.forEach(({ input, validIcon, li, id }, i) => {
+    setTimeout(() => {
+      validIcon.textContent = '⏳';
+      validIcon.style.color = '#a6adc8';
+      validateTicket(id).then(({ valid, name }) => {
+        applyTicketValidation(li, input, validIcon, valid, name);
+      });
+    }, i * 300);
   });
 }
 
@@ -368,11 +457,14 @@ document.getElementById('importBtn').addEventListener('click', async () => {
     const evt          = eventsCache[i];
     const manualInput  = document.querySelector('.ticket-manual[data-index="' + i + '"]');
     const billableCheck = document.querySelector('.billable-check[data-index="' + i + '"]');
+    const validIcon    = document.querySelector('.ticket-valid-icon[data-index="' + i + '"]');
     const titleAndDesc = (evt.summary || '') + ' ' + (evt.description || '');
     const autoTicket   = (titleAndDesc.match(TICKET_REGEX) || [])[1] || null;
     const manualTicket = manualInput ? manualInput.value.trim().toUpperCase() : null;
+    // Skip rows where ticket failed validation
+    const isInvalid    = validIcon && validIcon.textContent === '✖';
     return Object.assign({}, evt, {
-      ticketId: autoTicket || manualTicket || null,
+      ticketId: isInvalid ? null : (autoTicket || manualTicket || null),
       billable: billableCheck ? billableCheck.checked : true
     });
   });
@@ -480,6 +572,34 @@ function persistConfirmState() {
   });
 }
 
+function validateTimerTicket() {
+  const input     = document.getElementById('timerConfirmTicket');
+  const validIcon = document.getElementById('timerConfirmValidIcon');
+  const logBtn    = document.getElementById('timerLog');
+  const id        = input.value.trim().toUpperCase();
+  const desc      = document.getElementById('timerDescription').value.trim();
+
+  if (!id) {
+    if (validIcon) { validIcon.textContent = ''; }
+    logBtn.disabled = true;
+    return;
+  }
+  if (validIcon) { validIcon.textContent = '⏳'; validIcon.style.color = '#a6adc8'; }
+  logBtn.disabled = true;
+
+  validateTicket(id).then(({ valid, name }) => {
+    if (valid) {
+      if (validIcon) { validIcon.textContent = '✔'; validIcon.style.color = '#f9e2af'; validIcon.title = name || ''; }
+      input.style.borderColor = '';
+      logBtn.disabled = !desc;
+    } else {
+      if (validIcon) { validIcon.textContent = '✖'; validIcon.style.color = '#f38ba8'; validIcon.title = 'Ticket not found'; }
+      input.style.borderColor = '#f38ba8';
+      logBtn.disabled = true;
+    }
+  });
+}
+
 function renderTimerConfirm(ticketId, durationMs, billable, rawMs, description) {
   document.getElementById('timerSection').classList.add('hidden');
   document.getElementById('timerConfirm').classList.remove('hidden');
@@ -488,12 +608,12 @@ function renderTimerConfirm(ticketId, durationMs, billable, rawMs, description) 
   document.getElementById('durDisplay').textContent   = formatDuration(durationMs);
   document.getElementById('timerBillable').checked    = billable;
   document.getElementById('timerDescription').value   = description || '';
-  // Show raw tracked time in top right
   const rawEl = document.getElementById('timerRawDisplay');
   if (rawEl && rawMs) rawEl.textContent = formatHMS(rawMs);
-  // Log button starts disabled until description is filled
-  document.getElementById('timerLog').disabled = !(description && description.trim());
+  document.getElementById('timerLog').disabled = true;
   wireCombo(document.getElementById('timerConfirmTicket'), document.getElementById('timerConfirmDropdown'));
+  // Validate pre-filled ticket if present
+  if (ticketId) validateTimerTicket();
 }
 
 function showTimerConfirm(ticketId, elapsedMs) {
@@ -519,9 +639,10 @@ async function detectTicketFromTab() {
 }
 
 async function initTimer() {
-  const input    = document.getElementById('timerTicketInput');
-  const dropdown = document.getElementById('timerDropdown');
-  const starBtn  = document.getElementById('timerStarBtn');
+  const input     = document.getElementById('timerTicketInput');
+  const dropdown  = document.getElementById('timerDropdown');
+  const starBtn   = document.getElementById('timerStarBtn');
+  const validIcon = document.getElementById('timerInputValidIcon');
 
   function syncStar() {
     const id = input.value.trim().toUpperCase();
@@ -535,6 +656,26 @@ async function initTimer() {
     });
   }
 
+  let timerInputDebounce = null;
+  function runInputValidation(id) {
+    if (!id) { validIcon.textContent = ''; input.style.borderColor = ''; return; }
+    validIcon.textContent = '\u23f3';
+    validIcon.style.color = '#a6adc8';
+    validateTicket(id).then(({ valid, name }) => {
+      if (valid) {
+        validIcon.textContent = '\u2714';
+        validIcon.style.color = '#f9e2af';
+        validIcon.title = name || '';
+        input.style.borderColor = '';
+      } else {
+        validIcon.textContent = '\u2716';
+        validIcon.style.color = '#f38ba8';
+        validIcon.title = 'Ticket not found in ClickUp';
+        input.style.borderColor = '#f38ba8';
+      }
+    });
+  }
+
   // Restore running timer or auto-detect from tab
   await new Promise(resolve => {
     chrome.storage.local.get([TIMER_KEY], (r) => {
@@ -545,8 +686,24 @@ async function initTimer() {
   });
   if (!input.value) { const detected = await detectTicketFromTab(); if (detected) input.value = detected; }
 
-  // Wire combo — syncStar called on every selection and input change
-  wireCombo(input, dropdown, (id) => { dbg('wireCombo onSelect, id:', id); syncStar(); }).then(() => syncStar());
+  // Validate pre-filled/restored ticket
+  if (input.value) runInputValidation(input.value.trim().toUpperCase());
+
+  // Wire combo — syncStar + validate on selection
+  wireCombo(input, dropdown, (id) => {
+    dbg('wireCombo onSelect, id:', id);
+    syncStar();
+    runInputValidation(id.trim().toUpperCase());
+  }).then(() => syncStar());
+
+  // Validate on typing (debounced)
+  input.addEventListener('input', () => {
+    syncStar();
+    if (timerInputDebounce) clearTimeout(timerInputDebounce);
+    const id = input.value.trim().toUpperCase();
+    if (!id || !/^[A-Z]+-\d+$/.test(id)) { runInputValidation(''); return; }
+    timerInputDebounce = setTimeout(() => runInputValidation(id), 600);
+  });
 
   // Star button
   starBtn.addEventListener('click', (e) => {
@@ -558,8 +715,6 @@ async function initTimer() {
       setTimeout(syncStar, 100);
     });
   });
-
-  input.addEventListener('input', syncStar);
 }
 
 // ── Timer controls ────────────────────────────────────────────────────────────
@@ -581,8 +736,28 @@ document.getElementById('timerBtn').addEventListener('click', () => {
 });
 
 document.getElementById('timerBillable').addEventListener('change', persistConfirmState);
-document.getElementById('timerConfirmTicket').addEventListener('input', persistConfirmState);
-document.getElementById('timerDescription').addEventListener('input', persistConfirmState);
+document.getElementById('timerDescription').addEventListener('input', () => {
+  persistConfirmState();
+  // Re-check log button — only enable if ticket is valid AND description filled
+  const validIcon = document.getElementById('timerConfirmValidIcon');
+  const desc = document.getElementById('timerDescription').value.trim();
+  const ticketValid = validIcon && validIcon.textContent === '✔';
+  document.getElementById('timerLog').disabled = !(ticketValid && desc);
+});
+
+let timerTicketDebounce = null;
+document.getElementById('timerConfirmTicket').addEventListener('input', () => {
+  persistConfirmState();
+  if (timerTicketDebounce) clearTimeout(timerTicketDebounce);
+  const id = document.getElementById('timerConfirmTicket').value.trim().toUpperCase();
+  if (!id || !/^[A-Z]+-\d+$/.test(id)) {
+    const vi = document.getElementById('timerConfirmValidIcon');
+    if (vi) { vi.textContent = ''; }
+    document.getElementById('timerLog').disabled = true;
+    return;
+  }
+  timerTicketDebounce = setTimeout(validateTimerTicket, 600);
+});
 
 document.getElementById('timerLog').addEventListener('click', async () => {
   const ticketId   = document.getElementById('timerConfirmTicket').value.trim().toUpperCase();

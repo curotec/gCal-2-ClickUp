@@ -68,6 +68,24 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.3.4
+- Added ticket ID validation to the timetracker ticket input:
+  - Pre-filled/auto-detected tickets validated on load
+  - Typing validates after 600ms debounce
+  - Dropdown selections validate immediately
+  - Same ⏳/✔/✖ icons as calendar rows and confirm panel
+
+### v2.3.3
+- Added ticket ID validation against ClickUp API for both calendar events and
+  the timetracker confirmation panel:
+  - Calendar events: pre-filled ticket IDs validated on load (300ms stagger),
+    manually entered IDs validated on demand (600ms debounce)
+  - ⏳ shown while checking, ✔ yellow if valid, ✖ red if not found
+  - Invalid rows are grayed out, checkbox unchecked and disabled
+  - Row restores to normal when a valid ticket ID is entered
+  - Timetracker: ticket validated on blur/debounce, Log Time stays disabled
+    until both ticket is valid and description is filled
+
 ### v2.3.2
 - Timetracker confirmation panel improvements:
   - Added mandatory Description field (3 lines) — Log Time stays disabled until filled

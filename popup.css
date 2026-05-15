@@ -509,3 +509,27 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   text-align: right;
   min-height: 14px;
 }
+
+/* ── Ticket validation ───────────────────────────────────────────────────── */
+.ticket-valid-icon {
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  margin-left: 4px;
+}
+
+.ticket-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.event-item.ticket-invalid {
+  opacity: 0.5;
+}
+
+.event-item.ticket-invalid .evt-check {
+  cursor: not-allowed;
+}
