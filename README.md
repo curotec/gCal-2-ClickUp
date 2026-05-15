@@ -68,6 +68,42 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.3.2
+- Timetracker confirmation panel improvements:
+  - Added mandatory Description field (3 lines) — Log Time stays disabled until filled
+  - Description is sent as the ClickUp time entry description (not the ticket ID)
+  - Removed +/- duration buttons — rounded duration shown as plain text
+  - Raw tracked time shown in top right corner of the panel for reference
+
+### v2.3.1
+- Timer section hides when calendar events are loaded and reappears after
+  import completes or when Load Events is clicked again
+
+### v2.3.0
+- Full housekeeping rewrite of popup.js:
+  - Removed duplicate cleanTitle() function
+  - Fixed ticket ID detection to use rawTitle (pre-clean) not cleaned title
+  - Removed dead filter in getFrequentTickets
+  - Unified dropdown builder into single buildDropdown() used by both event
+    list and timer combos
+  - Removed all leftover debug code and dead blocks from previous attempts
+  - Consistent wireCombo() with onSelect callback throughout
+
+### v2.2.1
+- Fixed star not highlighting on first dropdown selection — complete rewrite
+  of wireTimerCombo confirmed in place with working DOM node handlers
+
+### v2.2.0
+- Complete rewrite of wireTimerCombo — uses DOM nodes with direct per-item
+  mousedown handlers, synchronous dbg() logging
+
+### v2.1.9
+- Fixed dbg() helper to cache debug mode synchronously so logs work inside
+  event handlers (previously async storage read caused logs to be missed)
+
+### v2.1.8
+- Added global mousedown tracker and dropdown open log for debugging
+
 ### v2.1.7
 - Rewrote dropdown item rendering to use createElement and attach mousedown
   handlers directly to each item instead of innerHTML + event delegation
