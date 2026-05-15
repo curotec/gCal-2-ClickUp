@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GCal → ClickUp</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>📅 GCal → ClickUp</h1>
+      <div class="header-actions">
+        <a href="#" id="openOptions" title="Settings">⚙️</a>
+      </div>
+    </header>
+
+    <div id="dateSection">
+      <label for="datePicker">Select date:</label>
+      <input type="date" id="datePicker" />
+      <button id="loadBtn">Load Events</button>
+    </div>
+
+    <div id="status"></div>
+
+    <!-- ── Ad-hoc Timer ─────────────────────────────────────────── -->
+    <div id="timerSection">
+      <div class="timer-ticket-row">
+        <div class="ticket-combo" id="timerCombo">
+          <input type="text" id="timerTicketInput"
+            placeholder="Ticket ID (e.g. CTK-1234)" autocomplete="off" />
+          <ul class="ticket-dropdown" id="timerDropdown"></ul>
+        </div>
+        <button class="star-btn" id="timerStarBtn" title="Favorite this ticket">&#9734;</button>
+      </div>
+      <div class="timer-controls">
+        <button id="timerBtn" class="timer-start">&#9654; Start</button>
+        <span id="timerDisplay">00:00:00</span>
+      </div>
+    </div>
+
+    <!-- ── Timer Confirmation Panel ─────────────────────────────── -->
+    <div id="timerConfirm" class="hidden">
+      <div class="timer-confirm-header">
+        <span class="timer-confirm-title">Log tracked time</span>
+        <span id="timerRawDisplay" class="timer-raw-time" title="Actual tracked time"></span>
+      </div>
+      <div class="timer-confirm-row">
+        <label>Ticket</label>
+        <div class="ticket-combo" id="timerConfirmCombo">
+          <input type="text" id="timerConfirmTicket" autocomplete="off" />
+          <ul class="ticket-dropdown" id="timerConfirmDropdown"></ul>
+        </div>
+      </div>
+      <div class="timer-confirm-row timer-confirm-desc-row">
+        <label>Description<span class="required-mark">*</span></label>
+        <textarea id="timerDescription" rows="3"
+          placeholder="What did you work on?"></textarea>
+      </div>
+      <div class="timer-confirm-row">
+        <label>Duration</label>
+        <span id="durDisplay" class="dur-value">0h 00m</span>
+      </div>
+      <div class="timer-confirm-row">
+        <label>Billable</label>
+        <label class="billable-label">
+          <input type="checkbox" id="timerBillable" checked /> Yes
+        </label>
+      </div>
+      <div class="timer-confirm-actions">
+        <button id="timerDiscard">Discard</button>
+        <button id="timerLog" class="primary" disabled>Log Time</button>
+      </div>
+      <div id="timerConfirmStatus"></div>
+    </div>
+
+    <div id="eventList" class="hidden">
+      <div class="section-header">
+        <span id="eventCount"></span>
+        <label class="select-all-label">
+          <input type="checkbox" id="selectAll" checked /> Select all
+        </label>
+      </div>
+      <div id="clickupTimezone" class="timezone-hint"></div>
+      <ul id="events"></ul>
+      <div class="import-bar">
+        <button id="importBtn" class="primary">Import Selected</button>
+      </div>
+    </div>
+
+    <div id="importProgress" class="hidden">
+      <div id="progressLog"></div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

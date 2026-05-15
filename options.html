@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GCal to ClickUp - Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div id="app">
+    <h1>&#9881;&#65039; GCal &#8594; ClickUp Settings</h1>
+
+    <section>
+      <h2>ClickUp API Token</h2>
+      <p class="hint">
+        Your personal API token from ClickUp. Find it under
+        <strong>Settings &#8594; Apps &#8594; API Token</strong>.
+        It starts with <code>pk_</code>.
+      </p>
+      <input type="password" id="clickupToken" placeholder="pk_xxxxxxxxxx..." autocomplete="new-password" spellcheck="false" data-form-type="other" />
+      <div class="actions">
+        <button id="saveClickupBtn" class="primary">Save</button>
+        <span id="saveClickupStatus"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>ClickUp Team ID</h2>
+      <p class="hint">
+        Your workspace/team ID. You can see it in the ClickUp URL:
+        <code>app.clickup.com/<strong>9017610002</strong>/...</code>
+      </p>
+      <input type="text" id="teamId" placeholder="9017610002" autocomplete="off" spellcheck="false" />
+      <div class="actions">
+        <button id="saveTeamBtn" class="primary">Save</button>
+        <span id="saveTeamStatus"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Skip List</h2>
+      <p class="hint">
+        Events whose titles <strong>contain</strong> any of these words/phrases will be
+        automatically deselected. One entry per line. Case-insensitive.
+      </p>
+      <textarea id="skipList" rows="8" placeholder="Lunch&#10;Break&#10;OOO&#10;Out of office&#10;PTO"></textarea>
+      <div class="actions">
+        <button id="saveSkipBtn" class="primary">Save</button>
+        <span id="saveSkipStatus"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Debug Mode</h2>
+      <p class="hint">
+        When enabled, detailed logs are written to the browser console (F12 &#8594; Console).
+      </p>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+        <input type="checkbox" id="debugMode" />
+        <span>Enable debug logging</span>
+      </label>
+      <span id="debugStatus" style="font-size:12px;color:#a6e3a1;margin-top:8px;display:block;"></span>
+    </section>
+
+    <section>
+      <h2>Favorite Tickets</h2>
+      <p class="hint">
+        Favorites appear at the top of every ticket dropdown. Add tickets manually
+        here or star them directly from the popup.
+      </p>
+
+      <div id="favoritesList" style="margin-bottom:12px;"></div>
+      <p id="favoritesEmpty" class="hint" style="display:none;">No favorites yet.</p>
+
+      <div class="add-favorite-row">
+        <input type="text" id="newFavId" placeholder="e.g. CTK-1234"
+          autocomplete="off" spellcheck="false" maxlength="12" />
+        <span id="newFavValidIcon"></span>
+      </div>
+      <div id="newFavNameRow" class="fav-name-preview hidden">
+        <span id="newFavNameDisplay"></span>
+      </div>
+      <div class="add-favorite-row" style="margin-top:8px;">
+        <button id="addFavBtn" class="primary" disabled>Add</button>
+        <span id="addFavStatus"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Ticket Suggestions</h2>
+      <p class="hint">
+        The dropdown suggests your most-used tickets from the last 30 days.
+        Reset to clear the history and start fresh.
+      </p>
+      <button id="resetTicketsBtn">Reset ticket history</button>
+      <span id="resetTicketsStatus"></span>
+    </section>
+
+    <section>
+      <h2>Google Account</h2>
+      <p class="hint">Sign out to switch Google accounts or revoke access.</p>
+      <button id="signOutBtn">Sign out of Google</button>
+    </section>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>
