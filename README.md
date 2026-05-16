@@ -68,6 +68,36 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.4.3
+- Removed temporary forced debug logging — debug mode back to settings toggle
+
+### v2.4.2
+- Fixed applyTicketValidation not applying isProtected check — previous edits
+  were not persisting to file; verified and reapplied correctly
+
+### v2.4.1
+- Forced debug logging always on temporarily to diagnose [existing] checkbox issue
+- Fixed applyTicketValidation re-enabling protected checkboxes on valid tickets
+
+### v2.4.0
+- Fixed [existing] rows being re-enabled after ticket validation — runValidation
+  empty-id path was unconditionally re-enabling all checkboxes including
+  protected rows
+
+### v2.3.9
+- Fixed [existing] events getting re-checked after ticket validation —
+  applyTicketValidation now skips re-enabling checkboxes on rows that have
+  a status-warning or status-danger class
+
+### v2.3.8
+- Fixed [existing] checkbox not being disabled — HTML attribute alone was
+  unreliable; now also sets disabled imperatively via JS after the element
+  is added to the DOM
+
+### v2.3.7
+- Added debug logging to status detection loop for diagnosing [existing]
+  checkbox issue
+
 ### v2.3.6
 - Fixed [existing] events not being disabled — checkbox attribute was not
   being applied correctly in HTML string; now uses explicit checked="checked"
