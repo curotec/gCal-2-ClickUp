@@ -196,15 +196,17 @@ async function validateTicket(ticketId) {
 
 function applyTicketValidation(li, input, validIcon, isValid, taskName) {
   const checkbox = li.querySelector('.evt-check');
+  const isProtected = li.classList.contains('status-warning') || li.classList.contains('status-danger');
   if (isValid) {
-    validIcon.textContent = '✔';
+    validIcon.textContent = '\u2714';
     validIcon.style.color = '#f9e2af';
     validIcon.title = taskName || '';
     li.classList.remove('ticket-invalid');
-    if (checkbox) { checkbox.disabled = false; checkbox.checked = true; }
+    // Never re-enable a protected row (existing or conflict)
+    if (checkbox && !isProtected) { checkbox.disabled = false; checkbox.checked = true; }
     input.style.borderColor = '';
   } else {
-    validIcon.textContent = '✖';
+    validIcon.textContent = '\u2716';
     validIcon.style.color = '#f38ba8';
     validIcon.title = 'Ticket not found in ClickUp';
     li.classList.add('ticket-invalid');
@@ -300,7 +302,8 @@ function renderEvents(events, skipList, clickupEntries) {
 
     li.innerHTML =
       '<input type="checkbox" class="evt-check" data-index="' + i + '" ' +
-        (!skipped && status === 'clean' ? 'checked' : '') + ' ' + (skipped ? 'disabled' : '') + ' />' +
+        ((!skipped && status === 'clean') ? 'checked="checked"' : '') + ' ' +
+        ((skipped || status === 'warning' || status === 'danger') ? 'disabled="disabled"' : '') + ' />' +
       '<div class="event-info">' +
         '<span class="event-title" title="' + title.replace(/"/g, '&quot;') + '">' +
           '<span class="event-title-text">' + title + '</span>' + statusBadge +
@@ -324,10 +327,22 @@ function renderEvents(events, skipList, clickupEntries) {
           '</div>' : '') +
       '</div>';
     ul.appendChild(li);
+
+    // Imperatively enforce disabled state for warning/danger — belt and suspenders
+    if (!skipped && (status === 'warning' || status === 'danger')) {
+      const cb = li.querySelector('.evt-check');
+      if (cb) { cb.checked = false; cb.disabled = true; }
+    }
   });
 
   document.getElementById('eventCount').textContent = events.length + ' events found';
   document.getElementById('eventList').classList.remove('hidden');
+  updateTimeSum();
+
+  // Wire individual checkboxes to update time sum
+  document.querySelectorAll('.evt-check').forEach(cb => {
+    cb.addEventListener('change', updateTimeSum);
+  });
 
   // Wire star buttons
   getFavorites().then(({ ids: favIds, names }) => {
@@ -361,8 +376,9 @@ function renderEvents(events, skipList, clickupEntries) {
       if (!id) {
         validIcon.textContent = '';
         input.style.borderColor = '';
+        const isProtected = li.classList.contains('status-warning') || li.classList.contains('status-danger');
         const cb = li.querySelector('.evt-check');
-        if (cb) { cb.disabled = false; }
+        if (cb && !isProtected) { cb.disabled = false; }
         li.classList.remove('ticket-invalid');
         return;
       }
@@ -403,9 +419,28 @@ function renderEvents(events, skipList, clickupEntries) {
   });
 }
 
+// ── Time sum ─────────────────────────────────────────────────────────────────
+function updateTimeSum() {
+  let totalMs = 0;
+  document.querySelectorAll('.evt-check:checked:not([disabled])').forEach(cb => {
+    const i   = parseInt(cb.dataset.index);
+    const evt = eventsCache[i];
+    if (!evt) return;
+    totalMs += new Date(evt.end.dateTime) - new Date(evt.start.dateTime);
+  });
+  const h = Math.floor(totalMs / 3600000);
+  const m = Math.floor((totalMs % 3600000) / 60000);
+  const label = totalMs > 0
+    ? (h ? h + 'h ' : '') + m + 'm'
+    : '0m';
+  const el = document.getElementById('timeSum');
+  if (el) el.textContent = label;
+}
+
 // ── Select All ────────────────────────────────────────────────────────────────
 document.getElementById('selectAll').addEventListener('change', (e) => {
   document.querySelectorAll('.evt-check:not([disabled])').forEach(cb => { cb.checked = e.target.checked; });
+  updateTimeSum();
 });
 
 // ── Load Events ───────────────────────────────────────────────────────────────

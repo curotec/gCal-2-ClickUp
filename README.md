@@ -68,6 +68,17 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.3.6
+- Fixed [existing] events not being disabled — checkbox attribute was not
+  being applied correctly in HTML string; now uses explicit checked="checked"
+  and disabled="disabled" forms
+
+### v2.3.5
+- Fixed bug where [existing] and [conflict] events were still checked and
+  enabled — they are now unchecked and disabled to prevent duplicate entries
+- Added total selected time sum displayed next to the event count (green,
+  updates dynamically as checkboxes are toggled)
+
 ### v2.3.4
 - Added ticket ID validation to the timetracker ticket input:
   - Pre-filled/auto-detected tickets validated on load
