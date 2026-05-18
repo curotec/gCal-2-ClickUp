@@ -115,15 +115,17 @@ async function getFrequentTickets() {
   });
 }
 
-function recordTicketUse(ticketId, taskName) {
+function recordTicketUse(ticketId, taskName, billable) {
   if (!ticketId) return;
-  chrome.storage.local.get(['ticketFrequency', 'ticketNames'], (r) => {
-    const freq  = r.ticketFrequency || {};
-    const names = r.ticketNames || {};
-    const cutoff = Date.now() - THIRTY_DAYS_MS;
+  chrome.storage.local.get(['ticketFrequency', 'ticketNames', 'ticketBillable'], (r) => {
+    const freq    = r.ticketFrequency || {};
+    const names   = r.ticketNames || {};
+    const billMap = r.ticketBillable || {};
+    const cutoff  = Date.now() - THIRTY_DAYS_MS;
     freq[ticketId] = [...(freq[ticketId] || []).filter(t => t > cutoff), Date.now()];
     if (taskName) names[ticketId] = taskName;
-    chrome.storage.local.set({ ticketFrequency: freq, ticketNames: names });
+    if (billable !== undefined) billMap[ticketId] = billable;
+    chrome.storage.local.set({ ticketFrequency: freq, ticketNames: names, ticketBillable: billMap });
   });
 }
 
@@ -213,6 +215,26 @@ function applyTicketValidation(li, input, validIcon, isValid, taskName) {
     if (checkbox) { checkbox.disabled = true; checkbox.checked = false; }
     input.style.borderColor = '#f38ba8';
   }
+}
+
+// ── Billable preference ──────────────────────────────────────────────────────
+async function getBillablePreference(ticketId) {
+  if (!ticketId) return true;
+  return new Promise(resolve => {
+    chrome.storage.local.get(['ticketBillable'], (r) => {
+      const map = r.ticketBillable || {};
+      resolve(ticketId in map ? map[ticketId] : true);
+    });
+  });
+}
+
+function saveBillablePreference(ticketId, billable) {
+  if (!ticketId) return;
+  chrome.storage.local.get(['ticketBillable'], (r) => {
+    const map = r.ticketBillable || {};
+    map[ticketId] = billable;
+    chrome.storage.local.set({ ticketBillable: map });
+  });
 }
 
 // ── Dropdown builder (shared by event list and timer) ─────────────────────────
@@ -402,9 +424,28 @@ function renderEvents(events, skipList, clickupEntries) {
       debounceTimer = setTimeout(() => runValidation(id), 600);
     });
 
-    // Queue pre-filled tickets for on-load validation
+    // Pre-fill billable preference when ticket is selected from dropdown
+    wireCombo(input, dropdown, (id) => {
+      if (!id) return;
+      const billableCheck = li.querySelector('.billable-check');
+      if (billableCheck) {
+        getBillablePreference(id.trim().toUpperCase()).then(pref => {
+          billableCheck.checked = pref;
+        });
+      }
+      runValidation(id.trim().toUpperCase());
+    });
+
+    // Queue pre-filled tickets for on-load validation + billable pre-fill
     const preId = input.value.trim().toUpperCase();
-    if (preId) prefilled.push({ input, validIcon, li, id: preId });
+    if (preId) {
+      prefilled.push({ input, validIcon, li, id: preId });
+      // Pre-fill billable for pre-detected ticket
+      const billableCheck = li.querySelector('.billable-check');
+      if (billableCheck) {
+        getBillablePreference(preId).then(pref => { billableCheck.checked = pref; });
+      }
+    }
   });
 
   // Validate pre-filled tickets on load with stagger to avoid rate limiting
@@ -538,7 +579,7 @@ document.getElementById('importBtn').addEventListener('click', async () => {
       });
       if (result && result.success) {
         log('Done: "' + title + '" \u2192 ' + evt.ticketId, 'ok');
-        recordTicketUse(evt.ticketId, result.taskName || null);
+        recordTicketUse(evt.ticketId, result.taskName || null, evt.billable);
       } else {
         log('Failed: "' + title + '" \u2014 ' + ((result && result.error) || 'Unknown error'), 'err');
       }
@@ -653,8 +694,10 @@ function renderTimerConfirm(ticketId, durationMs, billable, rawMs, description) 
 
 function showTimerConfirm(ticketId, elapsedMs) {
   const rounded = roundUpTo5Min(elapsedMs);
-  chrome.storage.local.set({ adHocTimerConfirm: { ticketId: ticketId || '', durationMs: rounded, billable: true, rawMs: elapsedMs, description: '' } });
-  renderTimerConfirm(ticketId || '', rounded, true, elapsedMs, '');
+  getBillablePreference(ticketId || '').then(billable => {
+    chrome.storage.local.set({ adHocTimerConfirm: { ticketId: ticketId || '', durationMs: rounded, billable, rawMs: elapsedMs, description: '' } });
+    renderTimerConfirm(ticketId || '', rounded, billable, elapsedMs, '');
+  });
 }
 
 function hideTimerConfirm() {
@@ -791,6 +834,10 @@ document.getElementById('timerConfirmTicket').addEventListener('input', () => {
     document.getElementById('timerLog').disabled = true;
     return;
   }
+  // Pre-fill billable from preference when ticket ID changes
+  getBillablePreference(id).then(pref => {
+    document.getElementById('timerBillable').checked = pref;
+  });
   timerTicketDebounce = setTimeout(validateTimerTicket, 600);
 });
 
@@ -821,7 +868,7 @@ document.getElementById('timerLog').addEventListener('click', async () => {
   }, resolve));
 
   if (result && result.success) {
-    recordTicketUse(ticketId, result.taskName || null);
+    recordTicketUse(ticketId, result.taskName || null, billable);
     statusEl.style.color = '#a6e3a1'; statusEl.textContent = 'Logged!';
     setTimeout(() => { hideTimerConfirm(); statusEl.textContent = ''; }, 1500);
   } else {

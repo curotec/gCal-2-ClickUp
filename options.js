@@ -13,21 +13,39 @@ function renderFavorites() {
       return;
     }
     empty.style.display = 'none';
-    list.innerHTML = favs.map(id =>
-      '<div class="fav-item" data-ticket="' + id + '">' +
-        '<span class="fav-star">\u2605</span>' +
-        '<span class="fav-id">' + id + '</span>' +
-        (names[id] ? '<span class="fav-name">' + names[id].slice(0, 50) +
-          (names[id].length > 50 ? '\u2026' : '') + '</span>' : '') +
-        '<button class="fav-remove" data-ticket="' + id + '" title="Remove">\u00d7</button>' +
-      '</div>'
-    ).join('');
+    chrome.storage.local.get(['ticketBillable'], (br) => {
+      const billMap = br.ticketBillable || {};
+      list.innerHTML = favs.map(id =>
+        '<div class="fav-item" data-ticket="' + id + '">' +
+          '<span class="fav-star">\u2605</span>' +
+          '<span class="fav-id">' + id + '</span>' +
+          (names[id] ? '<span class="fav-name">' + names[id].slice(0, 40) +
+            (names[id].length > 40 ? '\u2026' : '') + '</span>' : '') +
+          '<label class="fav-billable-label" title="Billable by default">' +
+            '<input type="checkbox" class="fav-billable" data-ticket="' + id + '"' +
+            (billMap[id] !== false ? ' checked' : '') + ' />' +
+            ' Billable' +
+          '</label>' +
+          '<button class="fav-remove" data-ticket="' + id + '" title="Remove">\u00d7</button>' +
+        '</div>'
+      ).join('');
 
-    list.querySelectorAll('.fav-remove').forEach(btn => {
-      btn.addEventListener('click', () => {
-        chrome.storage.local.get(['ticketFavorites'], (r2) => {
-          const updated = (r2.ticketFavorites || []).filter(id => id !== btn.dataset.ticket);
-          chrome.storage.local.set({ ticketFavorites: updated }, renderFavorites);
+      list.querySelectorAll('.fav-billable').forEach(cb => {
+        cb.addEventListener('change', () => {
+          chrome.storage.local.get(['ticketBillable'], (r2) => {
+            const map = r2.ticketBillable || {};
+            map[cb.dataset.ticket] = cb.checked;
+            chrome.storage.local.set({ ticketBillable: map });
+          });
+        });
+      });
+
+      list.querySelectorAll('.fav-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          chrome.storage.local.get(['ticketFavorites'], (r2) => {
+            const updated = (r2.ticketFavorites || []).filter(id => id !== btn.dataset.ticket);
+            chrome.storage.local.set({ ticketFavorites: updated }, renderFavorites);
+          });
         });
       });
     });

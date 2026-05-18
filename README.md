@@ -68,6 +68,18 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.5.0
+- Added billable preference per ticket:
+  - Favorites: each favorite row in settings now has a Billable toggle
+    (checked by default), saved immediately on change
+  - Frequent tickets: billable status is saved every time a time entry
+    is imported, so the last-used status is remembered
+  - Priority: favorite setting > last-used > default (billable)
+  - Pre-fills automatically in event row billable checkboxes on load
+    and when a ticket is selected from the dropdown
+  - Pre-fills in timetracker confirmation panel when timer stops or
+    ticket ID is changed
+
 ### v2.4.3
 - Removed temporary forced debug logging — debug mode back to settings toggle
 
