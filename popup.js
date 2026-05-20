@@ -710,8 +710,21 @@ async function detectTicketFromTab() {
   return new Promise(resolve => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs.length) { resolve(null); return; }
-      const match = (tabs[0].url || '').match(/\/t\/(?:\d+\/)?([A-Z]+-\d+)/i);
-      resolve(match ? match[1].toUpperCase() : null);
+      const tab = tabs[0];
+      const url = tab.url || '';
+
+      // 1. Try URL pattern first (task pages)
+      const urlMatch = url.match(/\/t\/(?:\d+\/)?([A-Z]+-\d+)/i);
+      if (urlMatch) { resolve(urlMatch[1].toUpperCase()); return; }
+
+      // 2. Not a ClickUp page at all
+      if (!url.includes('clickup.com')) { resolve(null); return; }
+
+      // 3. Ask content script to read from DOM (inbox and other views)
+      chrome.tabs.sendMessage(tab.id, { type: 'GET_TICKET_FROM_DOM' }, (resp) => {
+        if (chrome.runtime.lastError) { resolve(null); return; }
+        resolve(resp && resp.ticketId ? resp.ticketId.toUpperCase() : null);
+      });
     });
   });
 }

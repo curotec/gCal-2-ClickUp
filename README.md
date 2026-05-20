@@ -68,6 +68,12 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.5.1
+- Timetracker now detects ticket ID from the ClickUp DOM when the URL doesn't
+  contain it (e.g. inbox view) — reads from the task label button using the
+  data-test="task-view-task-label__taskid-button" selector, with a fallback
+  to scanning the page text
+
 ### v2.5.0
 - Added billable preference per ticket:
   - Favorites: each favorite row in settings now has a Billable toggle
