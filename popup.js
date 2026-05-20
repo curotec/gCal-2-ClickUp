@@ -649,17 +649,33 @@ function updateTimerDisplay() {
 }
 
 function startTimerUI() {
-  const btn = document.getElementById('timerBtn');
+  const btn      = document.getElementById('timerBtn');
+  const pauseBtn = document.getElementById('timerPauseBtn');
   btn.textContent = '\u23f9 Stop';
   btn.classList.replace('timer-start', 'timer-stop');
+  pauseBtn.textContent = '\u23f8 Pause';
+  pauseBtn.classList.remove('hidden', 'timer-resume');
+  pauseBtn.classList.add('timer-pause');
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(updateTimerDisplay, 1000);
 }
 
+function pauseTimerUI(frozenDisplay) {
+  const pauseBtn = document.getElementById('timerPauseBtn');
+  pauseBtn.textContent = '\u25b6 Resume';
+  pauseBtn.classList.remove('timer-pause');
+  pauseBtn.classList.add('timer-resume');
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  if (frozenDisplay) document.getElementById('timerDisplay').textContent = frozenDisplay;
+}
+
 function stopTimerUI() {
-  const btn = document.getElementById('timerBtn');
+  const btn      = document.getElementById('timerBtn');
+  const pauseBtn = document.getElementById('timerPauseBtn');
   btn.textContent = '\u25b6 Start';
   btn.classList.replace('timer-stop', 'timer-start');
+  pauseBtn.classList.add('hidden');
+  pauseBtn.classList.remove('timer-pause', 'timer-resume');
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   document.getElementById('timerDisplay').textContent = '00:00:00';
 }

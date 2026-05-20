@@ -81,6 +81,9 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.6.1
+- Fixed pause button not appearing when timer starts
+
 ### v2.6.0
 - Added Pause/Resume to the timetracker:
   - ⏸ Pause button (orange) appears next to ⏹ Stop when timer is running
