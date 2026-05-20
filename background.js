@@ -188,17 +188,61 @@ chrome.notifications.onButtonClicked.addListener((notifId, btnIdx) => {
   }
 });
 
-// Listen for timer start from popup
+// Pause reminder interval
+let pauseReminderInterval = null;
+
+function clearPauseReminder() {
+  if (pauseReminderInterval) { clearInterval(pauseReminderInterval); pauseReminderInterval = null; }
+}
+
+function startPauseReminder() {
+  clearPauseReminder();
+  pauseReminderInterval = setInterval(() => {
+    chrome.storage.local.get([TIMER_KEY], (r) => {
+      if (r[TIMER_KEY] && r[TIMER_KEY].paused) {
+        chrome.notifications.create('timerPaused', {
+          type: 'basic',
+          iconUrl: 'icons/icon48.png',
+          title: 'GCal → ClickUp Timer',
+          message: 'Your timer is still paused — don’t forget to resume or stop!'
+        });
+      } else {
+        clearPauseReminder();
+      }
+    });
+  }, 5 * 60 * 1000);
+}
+
+// Listen for timer messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'TIMER_START') {
+    clearPauseReminder();
     scheduleTimerWarning(message.startTs);
+  }
+  if (message.type === 'TIMER_PAUSE') {
+    clearTimerTimeouts();
+    startPauseReminder();
+  }
+  if (message.type === 'TIMER_RESUME') {
+    clearPauseReminder();
+    // Reschedule 1-hour warning accounting for already-elapsed time
+    const fakeStart = Date.now() - (message.pausedElapsed || 0);
+    scheduleTimerWarning(fakeStart);
+  }
+  if (message.type === 'TIMER_STOP') {
+    clearTimerTimeouts();
+    clearPauseReminder();
   }
 });
 
-// On service worker startup, restore timer if one was running
+// On service worker startup, restore timer state
 chrome.storage.local.get([TIMER_KEY], (r) => {
   const t = r[TIMER_KEY];
   if (t && t.running) {
-    scheduleTimerWarning(t.startTs);
+    if (t.paused) {
+      startPauseReminder();
+    } else {
+      scheduleTimerWarning(t.startTs);
+    }
   }
 });

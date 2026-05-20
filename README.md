@@ -81,6 +81,14 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.6.0
+- Added Pause/Resume to the timetracker:
+  - ⏸ Pause button (orange) appears next to ⏹ Stop when timer is running
+  - ▶ Resume button (green) replaces Pause when timer is paused
+  - Elapsed time is preserved correctly across pause/resume cycles
+  - Paused state persists across popup close/reopen
+  - Chrome notification fires every 5 minutes while paused as a reminder
+
 ### v2.5.3
 - Added automatic update checker — popup shows a banner when a newer version
   is available on Bitbucket, with a direct link to the repository

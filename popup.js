@@ -642,7 +642,9 @@ function updateTimerDisplay() {
   chrome.storage.local.get([TIMER_KEY], (r) => {
     const t = r[TIMER_KEY];
     if (!t || !t.running) return;
-    document.getElementById('timerDisplay').textContent = formatHMS(getElapsed(t.startTs));
+    if (t.paused) return; // frozen while paused
+    const elapsed = (t.pausedElapsed || 0) + getElapsed(t.startTs);
+    document.getElementById('timerDisplay').textContent = formatHMS(elapsed);
   });
 }
 
@@ -800,7 +802,21 @@ async function initTimer() {
   await new Promise(resolve => {
     chrome.storage.local.get([TIMER_KEY], (r) => {
       const t = r[TIMER_KEY];
-      if (t && t.running) { if (t.ticketId) input.value = t.ticketId; startTimerUI(); updateTimerDisplay(); }
+      if (t && t.running) {
+        if (t.ticketId) input.value = t.ticketId;
+        if (t.paused) {
+          // Restore paused state
+          const pauseBtn = document.getElementById('timerPauseBtn');
+          const stopBtn  = document.getElementById('timerBtn');
+          stopBtn.textContent = '⏹ Stop';
+          stopBtn.classList.replace('timer-start', 'timer-stop');
+          pauseBtn.classList.remove('hidden');
+          pauseTimerUI(formatHMS(t.pausedElapsed || 0));
+        } else {
+          startTimerUI();
+          updateTimerDisplay();
+        }
+      }
       resolve();
     });
   });
@@ -842,12 +858,17 @@ document.getElementById('timerBtn').addEventListener('click', () => {
   chrome.storage.local.get([TIMER_KEY], (r) => {
     const t = r[TIMER_KEY];
     if (t && t.running) {
+      // Calculate total elapsed including any previously paused time
+      const elapsed = t.paused
+        ? (t.pausedElapsed || 0)
+        : (t.pausedElapsed || 0) + getElapsed(t.startTs);
       chrome.storage.local.remove([TIMER_KEY]);
       stopTimerUI();
-      showTimerConfirm(t.ticketId, getElapsed(t.startTs));
+      showTimerConfirm(t.ticketId, elapsed);
+      chrome.runtime.sendMessage({ type: 'TIMER_STOP' });
     } else {
       const ticketId = document.getElementById('timerTicketInput').value.trim().toUpperCase();
-      const timerData = { running: true, startTs: Date.now(), ticketId: ticketId || null };
+      const timerData = { running: true, startTs: Date.now(), ticketId: ticketId || null, pausedElapsed: 0, paused: false };
       chrome.storage.local.set({ [TIMER_KEY]: timerData });
       startTimerUI();
       chrome.runtime.sendMessage({ type: 'TIMER_START', startTs: timerData.startTs });
@@ -921,14 +942,40 @@ document.getElementById('timerLog').addEventListener('click', async () => {
 
 document.getElementById('timerDiscard').addEventListener('click', hideTimerConfirm);
 
+// ── Pause / Resume ────────────────────────────────────────────────────────────
+document.getElementById('timerPauseBtn').addEventListener('click', () => {
+  chrome.storage.local.get([TIMER_KEY], (r) => {
+    const t = r[TIMER_KEY];
+    if (!t || !t.running) return;
+
+    if (!t.paused) {
+      // Pause — freeze elapsed, record pausedElapsed
+      const elapsed = (t.pausedElapsed || 0) + getElapsed(t.startTs);
+      const updated = { ...t, paused: true, pausedElapsed: elapsed, startTs: t.startTs };
+      chrome.storage.local.set({ [TIMER_KEY]: updated });
+      pauseTimerUI(formatHMS(elapsed));
+      chrome.runtime.sendMessage({ type: 'TIMER_PAUSE' });
+    } else {
+      // Resume — restart startTs from now
+      const updated = { ...t, paused: false, startTs: Date.now() };
+      chrome.storage.local.set({ [TIMER_KEY]: updated });
+      startTimerUI();
+      chrome.runtime.sendMessage({ type: 'TIMER_RESUME', startTs: updated.startTs, pausedElapsed: updated.pausedElapsed });
+    }
+  });
+});
+
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'TIMER_AUTO_STOP') {
     chrome.storage.local.get([TIMER_KEY], (r) => {
       const t = r[TIMER_KEY];
       if (t && t.running) {
+        const elapsed = t.paused
+          ? (t.pausedElapsed || 0)
+          : (t.pausedElapsed || 0) + getElapsed(t.startTs);
         chrome.storage.local.remove([TIMER_KEY]);
         stopTimerUI();
-        showTimerConfirm(t.ticketId, getElapsed(t.startTs));
+        showTimerConfirm(t.ticketId, elapsed);
       }
     });
   }

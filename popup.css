@@ -560,3 +560,31 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 #updateBanner a:hover {
   color: #c4b5fd;
 }
+
+.timer-pause {
+  background: #7c4a00;
+  color: #f9e2af;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.timer-pause:hover { background: #9a5d00; }
+
+.timer-resume {
+  background: #1e6b3a;
+  color: #a6e3a1;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.timer-resume:hover { background: #27873f; }
