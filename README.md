@@ -19,8 +19,21 @@ Edit `config.json`:
 }
 ```
 
-Your client ID is in [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-under **APIs & Services → Credentials**.
+Your client ID is in the **Curotec Google Cloud Console**:
+[APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials?project=curotec-1738158656515&rapt=AEjHL4Mb8NlWLLJBG9qv-qY4XJqZloIRwwFONHs-8TDcn6tr0Fw7PbN3T63juFSr0n08IA0nTO5-t1mXRMKZWfK10hndslphdWc__DTvJuOAxFrKraUHTJg)
+
+Under **OAuth 2.0 Client IDs**, find the entry for this extension and copy the Client ID.
+It will look like `787917123062-xxxx.apps.googleusercontent.com`.
+
+#### Setting up the OAuth Client ID for the first time
+
+When creating or editing the OAuth client, you need to add the extension's Chrome ID
+under **Authorized JavaScript origins** and **Authorized redirect URIs**.
+
+Use `bdkpjnahpplacaegbglhoilpcpamnkcg` as the extension ID for the **initial load**.
+This is the extension ID used during development. After loading the extension in Chrome
+for the first time, check `chrome://extensions` for its actual assigned ID and update
+the OAuth client with that value if it differs.
 
 > `config.json` is gitignored and will never be committed.
 > `manifest.json` only contains a `{{GOOGLE_CLIENT_ID}}` placeholder.
@@ -67,6 +80,15 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v2.5.2
+- Improved setup documentation:
+  - OAuth Client ID section now links directly to the Curotec Google Cloud
+    Console credentials page
+  - Added instructions for using bdkpjnahpplacaegbglhoilpcpamnkcg as the
+    initial extension ID when setting up OAuth
+- ClickUp Team ID now pre-filled with the Curotec workspace ID (9017610002)
+  so new users don't need to look it up
 
 ### v2.5.1
 - Timetracker now detects ticket ID from the ClickUp DOM when the URL doesn't
