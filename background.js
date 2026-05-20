@@ -149,7 +149,7 @@ function scheduleTimerWarning(startTs) {
       if (t && t.running) {
         chrome.storage.local.remove([TIMER_KEY]);
         chrome.notifications.clear('timerWarning');
-        // Notify all popup windows
+        stopBadge();
         chrome.runtime.sendMessage({ type: 'TIMER_AUTO_STOP' }).catch(() => {});
         chrome.notifications.create('timerStopped', {
           type: 'basic',
@@ -188,7 +188,40 @@ chrome.notifications.onButtonClicked.addListener((notifId, btnIdx) => {
   }
 });
 
-// Pause reminder interval
+// ── Badge display ────────────────────────────────────────────────────────────
+let badgeInterval = null;
+
+function updateBadge() {
+  chrome.storage.local.get([TIMER_KEY], (r) => {
+    const t = r[TIMER_KEY];
+    if (!t || !t.running) {
+      chrome.action.setBadgeText({ text: '' });
+      return;
+    }
+    const elapsed = t.paused
+      ? (t.pausedElapsed || 0)
+      : (t.pausedElapsed || 0) + (Date.now() - t.startTs);
+    const mins = Math.floor(elapsed / 60000);
+    const label = mins < 60 ? mins + 'm' : Math.floor(mins / 60) + 'h';
+    chrome.action.setBadgeText({ text: label });
+    chrome.action.setBadgeBackgroundColor({
+      color: t.paused ? '#f9761a' : '#27873f'
+    });
+  });
+}
+
+function startBadge() {
+  updateBadge();
+  if (badgeInterval) clearInterval(badgeInterval);
+  badgeInterval = setInterval(updateBadge, 30000); // update every 30s
+}
+
+function stopBadge() {
+  if (badgeInterval) { clearInterval(badgeInterval); badgeInterval = null; }
+  chrome.action.setBadgeText({ text: '' });
+}
+
+// ── Pause reminder interval
 let pauseReminderInterval = null;
 
 function clearPauseReminder() {
@@ -218,24 +251,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'TIMER_START') {
     clearPauseReminder();
     scheduleTimerWarning(message.startTs);
+    startBadge();
   }
   if (message.type === 'TIMER_PAUSE') {
     clearTimerTimeouts();
     startPauseReminder();
+    updateBadge(); // turn badge orange immediately
   }
   if (message.type === 'TIMER_RESUME') {
     clearPauseReminder();
-    // Reschedule 1-hour warning accounting for already-elapsed time
     const fakeStart = Date.now() - (message.pausedElapsed || 0);
     scheduleTimerWarning(fakeStart);
+    startBadge(); // turn badge green
   }
   if (message.type === 'TIMER_STOP') {
     clearTimerTimeouts();
     clearPauseReminder();
+    stopBadge();
   }
 });
 
-// On service worker startup, restore timer state
+// On service worker startup, restore timer state and badge
 chrome.storage.local.get([TIMER_KEY], (r) => {
   const t = r[TIMER_KEY];
   if (t && t.running) {
@@ -244,5 +280,6 @@ chrome.storage.local.get([TIMER_KEY], (r) => {
     } else {
       scheduleTimerWarning(t.startTs);
     }
+    startBadge();
   }
 });

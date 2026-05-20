@@ -81,6 +81,13 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.6.2
+- Added elapsed time badge on the extension icon:
+  - Green badge shows elapsed minutes/hours when timer is running (e.g. 14m, 1h)
+  - Orange badge when timer is paused
+  - Badge clears when timer is stopped or auto-stopped
+  - Updates every 30 seconds, restores correctly after browser restart
+
 ### v2.6.1
 - Fixed pause button not appearing when timer starts
 
