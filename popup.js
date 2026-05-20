@@ -15,6 +15,35 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const TICKET_REGEX   = /\b([A-Z]+-\d+)\b/;
 const TIMER_KEY      = 'adHocTimer';
 
+// ── Update checker ───────────────────────────────────────────────────────────
+const MANIFEST_URL = 'https://bitbucket.org/curotec/gcal-2-clickup/raw/main/manifest.json';
+
+async function checkForUpdate() {
+  try {
+    const res = await fetch(MANIFEST_URL, { cache: 'no-cache' });
+    if (!res.ok) return;
+    const remote = await res.json();
+    const remoteVersion = remote.version;
+    const localVersion = chrome.runtime.getManifest().version;
+    if (!remoteVersion || remoteVersion === localVersion) return;
+
+    // Compare versions — only show if remote is newer
+    const toNum = v => v.split('.').map(Number);
+    const [rA, rB, rC] = toNum(remoteVersion);
+    const [lA, lB, lC] = toNum(localVersion);
+    const isNewer = rA > lA || (rA === lA && rB > lB) || (rA === lA && rB === lB && rC > lC);
+    if (!isNewer) return;
+
+    const banner = document.getElementById('updateBanner');
+    if (!banner) return;
+    banner.classList.remove('hidden');
+    banner.innerHTML =
+      '⬆️ <strong>v' + remoteVersion + ' available</strong> ' +
+      '&mdash; <a href="https://bitbucket.org/curotec/gcal-2-clickup/src/main/" ' +
+      'target="_blank">View on Bitbucket</a>';
+  } catch (_) {}
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function cleanTitle(raw) {
   return raw
@@ -904,6 +933,9 @@ chrome.runtime.onMessage.addListener((message) => {
     });
   }
 });
+
+// Check for updates on popup open
+checkForUpdate();
 
 // Restore confirm panel if pending, then init timer
 chrome.storage.local.get(['adHocTimerConfirm'], (r) => {

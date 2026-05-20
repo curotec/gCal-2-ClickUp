@@ -81,6 +81,10 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.5.3
+- Added automatic update checker — popup shows a banner when a newer version
+  is available on Bitbucket, with a direct link to the repository
+
 ### v2.5.2
 - Improved setup documentation:
   - OAuth Client ID section now links directly to the Curotec Google Cloud

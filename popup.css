@@ -540,3 +540,23 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   font-family: monospace;
   margin-left: 8px;
 }
+
+/* ── Update banner ───────────────────────────────────────────────────────── */
+#updateBanner {
+  background: #2d1f6e;
+  border: 1px solid #7c3aed;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 11px;
+  color: #cdd6f4;
+  margin-bottom: 8px;
+}
+
+#updateBanner a {
+  color: #a78bfa;
+  text-decoration: underline;
+}
+
+#updateBanner a:hover {
+  color: #c4b5fd;
+}
