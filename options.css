@@ -417,7 +417,36 @@ button.primary:hover { background: #6d28d9; }
   flex-shrink: 0;
 }
 
+/* ── Ticket dropdown styles (shared with popup) ──────────────────────────── */
 .rule-ticket-combo .ticket-dropdown {
-  min-width: 240px;
-  font-size: 12px;
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #313244;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  min-width: 260px;
+  width: max-content;
+  max-width: 380px;
 }
+
+.rule-ticket-combo .ticket-dropdown.open { display: block; }
+
+.rule-ticket-combo .ticket-option {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: monospace;
+  color: #cdd6f4;
+  cursor: pointer;
+  white-space: nowrap;
+  list-style: none;
+}
+
+.rule-ticket-combo .ticket-option:hover { background: #45475a; color: #cba6f7; }
+.rule-ticket-combo .ticket-option-fav { color: #f9e2af; }

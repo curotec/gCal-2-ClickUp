@@ -81,6 +81,10 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.8.3
+- Fixed ticket suggestions dropdown in Event Rules — was rendering as a plain
+  list instead of a positioned overlay; fixed CSS scoping and z-index
+
 ### v2.8.2
 - Event Rules ticket input now shows favorite and frequent ticket suggestions
   dropdown on focus, same as the popup ticket inputs
