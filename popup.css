@@ -91,6 +91,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   list-style: none;
   max-height: 320px;
   overflow-y: auto;
+  overflow-x: visible;
   border: 1px solid #313244;
   border-radius: 8px;
 }
@@ -244,6 +245,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .ticket-combo {
   position: relative;
   width: 100%;
+  overflow: visible;
 }
 
 .ticket-dropdown {
@@ -251,7 +253,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   position: absolute;
   top: 100%;
   left: 0;
-  z-index: 100;
+  z-index: 999;
   margin: 2px 0 0;
   padding: 4px 0;
   list-style: none;
@@ -259,9 +261,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   border: 1px solid #45475a;
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  min-width: 300px;
-  width: max-content;
-  max-width: 380px;
+  min-width: 270px;
+  max-width: 270px;
+  width: 270px;
 }
 
 .ticket-dropdown.open {
@@ -275,6 +277,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #cdd6f4;
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ticket-option:hover {

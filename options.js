@@ -262,6 +262,7 @@ document.getElementById('debugMode').addEventListener('change', (e) => {
 // ── Event Rules ──────────────────────────────────────────────────────────────
 // ── Ticket suggestions for rule rows ─────────────────────────────────────────
 function getTicketSuggestions(callback) {
+  // Always do a fresh read from storage to ensure names are current
   chrome.storage.local.get(['ticketFrequency', 'ticketFavorites', 'ticketNames'], (r) => {
     const freq    = r.ticketFrequency || {};
     const favIds  = r.ticketFavorites || [];
@@ -276,11 +277,16 @@ function getTicketSuggestions(callback) {
       .sort((a, b) => b[1].length - a[1].length)
       .slice(0, 8).map(([id]) => id)
       .filter(id => !favIds.includes(id));
-    const all = [
-      ...favIds.slice(0, 3).map(id => ({ id, name: names[id] || '', fav: true })),
-      ...freqSorted.map(id => ({ id, name: names[id] || '', fav: false }))
-    ];
-    callback(all);
+
+    // Re-read ticketNames specifically to ensure freshness
+    chrome.storage.local.get(['ticketNames'], (nr) => {
+      const freshNames = nr.ticketNames || {};
+      const all = [
+        ...favIds.slice(0, 3).map(id => ({ id, name: freshNames[id] || names[id] || '', fav: true })),
+        ...freqSorted.map(id => ({ id, name: freshNames[id] || names[id] || '', fav: false }))
+      ];
+      callback(all);
+    });
   });
 }
 

@@ -81,6 +81,12 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.8.4
+- Fixed ticket names not showing in Event Rules dropdown for new rule rows
+- Fixed popup horizontal scroll caused by wide dropdown (reduced to 270px)
+- Fixed popup vertical scroll caused by dropdown pushing layout instead of
+  overlaying (z-index and overflow fixes)
+
 ### v2.8.3
 - Fixed ticket suggestions dropdown in Event Rules — was rendering as a plain
   list instead of a positioned overlay; fixed CSS scoping and z-index
