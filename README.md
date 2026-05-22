@@ -81,6 +81,11 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.8.7
+- Ticket name label font size increased to 12px
+- Fixed ticket name label placement in calendar event rows — now appears
+  below the ticket input row rather than inside the narrow combo container
+
 ### v2.8.6
 - Ticket name now shown below the ticket input after validation in:
   - Calendar event rows

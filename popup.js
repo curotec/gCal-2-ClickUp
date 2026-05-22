@@ -574,7 +574,8 @@ function renderEvents(events, skipList, clickupEntries) {
     input.addEventListener('input', () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       const id = input.value.trim().toUpperCase();
-      const nl = input.parentElement.querySelector('.ticket-name-label');
+      const labelP = li ? (li.querySelector('.event-info') || input.parentElement) : input.parentElement;
+      const nl = labelP ? labelP.querySelector('.ticket-name-label') : null;
       if (nl) nl.textContent = '';
       if (!id || !/^[A-Z]+-\d+$/.test(id)) { runValidation(''); return; }
       debounceTimer = setTimeout(() => runValidation(id), 600);
