@@ -81,6 +81,10 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.8.8
+- Fixed ticket name label not appearing in calendar event rows — switched to
+  insertAdjacentElement for reliable placement after the ticket input row
+
 ### v2.8.7
 - Ticket name label font size increased to 12px
 - Fixed ticket name label placement in calendar event rows — now appears
