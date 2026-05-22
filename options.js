@@ -359,7 +359,16 @@ document.getElementById('loadUpcomingBtn').addEventListener('click', () => {
   wrap.classList.add('hidden'); wrap.innerHTML = '';
 
   chrome.runtime.sendMessage({ type: 'GET_AUTH_TOKEN' }, async (resp) => {
-    if (resp.error) { status.style.color = '#f38ba8'; status.textContent = 'Auth error: ' + resp.error; return; }
+    if (chrome.runtime.lastError) {
+      status.style.color = '#f38ba8';
+      status.textContent = 'Error: ' + chrome.runtime.lastError.message;
+      return;
+    }
+    if (!resp || resp.error) {
+      status.style.color = '#f38ba8';
+      status.textContent = 'Auth error: ' + (resp && resp.error ? resp.error : 'No response');
+      return;
+    }
     const token = resp.token;
     const now   = new Date();
     const end   = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);

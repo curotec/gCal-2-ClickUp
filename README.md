@@ -81,6 +81,10 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.8.1
+- Fixed "Load upcoming events" button not responding — added proper error
+  handling for chrome.runtime.lastError and undefined response cases
+
 ### v2.8.0
 - Added Event Rules in ⚙️ Settings:
   - Load upcoming calendar events (next 2 weeks) as rule suggestions
