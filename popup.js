@@ -676,7 +676,7 @@ function updateTimeSum() {
   const timeSumEl = document.getElementById('timeSum');
   if (timeSumEl) timeSumEl.textContent = timeLabel;
   const selCountEl = document.getElementById('selectedCount');
-  if (selCountEl) selCountEl.textContent = selectedCount ? '· ' + selectedCount + ' selected' : '';
+  if (selCountEl) selCountEl.textContent = selectedCount ? selectedCount + ' selected' : '';
 }
 
 // ── Select All ────────────────────────────────────────────────────────────────

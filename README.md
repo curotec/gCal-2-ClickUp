@@ -81,6 +81,10 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.9.0
+- Removed leading dot from selected count label
+- Matched font size of selected count and time sum to event count
+
 ### v2.8.9
 - Fixed ticket name label: `applyTicketValidation` now creates the label element AND sets its text — previous versions had a broken reference to an undefined `nameLabel` variable
 
