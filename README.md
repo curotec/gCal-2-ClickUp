@@ -81,6 +81,10 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.8.2
+- Event Rules ticket input now shows favorite and frequent ticket suggestions
+  dropdown on focus, same as the popup ticket inputs
+
 ### v2.8.1
 - Fixed "Load upcoming events" button not responding — added proper error
   handling for chrome.runtime.lastError and undefined response cases

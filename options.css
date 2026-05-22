@@ -411,3 +411,13 @@ button.primary:hover { background: #6d28d9; }
 }
 
 .add-rule-row input:focus { outline: none; border-color: #7c3aed; }
+
+.rule-ticket-combo {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.rule-ticket-combo .ticket-dropdown {
+  min-width: 240px;
+  font-size: 12px;
+}

@@ -260,6 +260,60 @@ document.getElementById('debugMode').addEventListener('change', (e) => {
 });
 
 // ── Event Rules ──────────────────────────────────────────────────────────────
+// ── Ticket suggestions for rule rows ─────────────────────────────────────────
+function getTicketSuggestions(callback) {
+  chrome.storage.local.get(['ticketFrequency', 'ticketFavorites', 'ticketNames'], (r) => {
+    const freq    = r.ticketFrequency || {};
+    const favIds  = r.ticketFavorites || [];
+    const names   = r.ticketNames || {};
+    const cutoff  = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const cleaned = {};
+    for (const [id, timestamps] of Object.entries(freq)) {
+      const recent = timestamps.filter(t => t > cutoff);
+      if (recent.length) cleaned[id] = recent;
+    }
+    const freqSorted = Object.entries(cleaned)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 8).map(([id]) => id)
+      .filter(id => !favIds.includes(id));
+    const all = [
+      ...favIds.slice(0, 3).map(id => ({ id, name: names[id] || '', fav: true })),
+      ...freqSorted.map(id => ({ id, name: names[id] || '', fav: false }))
+    ];
+    callback(all);
+  });
+}
+
+function wireRuleTicketCombo(input, dropdown, onSelect) {
+  getTicketSuggestions(tickets => {
+    function showDrop(filter) {
+      const items = filter
+        ? tickets.filter(t => t.id.toUpperCase().includes(filter.toUpperCase()) ||
+            t.name.toUpperCase().includes(filter.toUpperCase()))
+        : tickets;
+      if (!items.length) { dropdown.classList.remove('open'); return; }
+      while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
+      items.forEach(t => {
+        const li = document.createElement('li');
+        li.className = 'ticket-option' + (t.fav ? ' ticket-option-fav' : '');
+        li.textContent = (t.fav ? '★ ' : '') + t.id +
+          (t.name ? ' – ' + t.name.slice(0, 35) + (t.name.length > 35 ? '…' : '') : '');
+        li.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          input.value = t.id;
+          dropdown.classList.remove('open');
+          if (onSelect) onSelect(t.id);
+        });
+        dropdown.appendChild(li);
+      });
+      dropdown.classList.add('open');
+    }
+    input.addEventListener('focus', () => showDrop(input.value));
+    input.addEventListener('input', () => showDrop(input.value));
+    input.addEventListener('blur', () => setTimeout(() => dropdown.classList.remove('open'), 150));
+  });
+}
+
 function renderEventRules() {
   chrome.storage.local.get(['eventRules', 'enabledTags', 'ticketNames'], (r) => {
     const rules  = r.eventRules || [];
@@ -280,7 +334,10 @@ function renderEventRules() {
           (rule.time ? '<span class="rule-time">' + rule.time + '</span>' : '') +
         '</div>' +
         '<div class="rule-controls">' +
-          '<input type="text" class="rule-ticket" data-idx="' + idx + '" value="' + (rule.ticketId || '') + '" placeholder="CTK-1234" />' +
+          '<div class="rule-ticket-combo">' +
+            '<input type="text" class="rule-ticket" data-idx="' + idx + '" value="' + (rule.ticketId || '') + '" placeholder="CTK-1234" autocomplete="off" />' +
+            '<ul class="ticket-dropdown rule-ticket-dropdown" data-idx="' + idx + '"></ul>' +
+          '</div>' +
           '<span class="rule-valid-icon" data-idx="' + idx + '"></span>' +
           '<label class="fav-billable-label">' +
             '<input type="checkbox" class="rule-billable" data-idx="' + idx + '"' + (rule.billable !== false ? ' checked' : '') + ' /> Billable' +
@@ -323,9 +380,16 @@ function renderEventRules() {
         });
       }
 
+      const ticketDropdown = row.querySelector('.rule-ticket-dropdown[data-idx="' + idx + '"]');
+      wireRuleTicketCombo(ticketInput, ticketDropdown, (id) => {
+        validateRuleTicket(id.toUpperCase());
+      });
+
       ticketInput.addEventListener('input', () => {
         if (debounce) clearTimeout(debounce);
-        debounce = setTimeout(() => validateRuleTicket(ticketInput.value.trim().toUpperCase()), 600);
+        const id = ticketInput.value.trim().toUpperCase();
+        if (!id) { row.querySelector('.rule-valid-icon').textContent = ''; return; }
+        debounce = setTimeout(() => validateRuleTicket(id), 600);
       });
       if (rule.ticketId) validateRuleTicket(rule.ticketId);
 
