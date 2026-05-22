@@ -231,6 +231,17 @@ function applyTicketValidation(li, input, validIcon, isValid, taskName) {
   const idx = input.dataset.index;
   const tagWrap = li.querySelector('.tag-select-wrap[data-index="' + idx + '"]');
 
+  // Get or create the ticket name label, placed after .ticket-input-row
+  let nameLabel = li.querySelector('.ticket-name-label');
+  if (!nameLabel) {
+    nameLabel = document.createElement('div');
+    nameLabel.className = 'ticket-name-label';
+    const ticketRow = li.querySelector('.ticket-input-row');
+    if (ticketRow) {
+      ticketRow.insertAdjacentElement('afterend', nameLabel);
+    }
+  }
+
   if (isValid) {
     validIcon.textContent = '\u2714';
     validIcon.style.color = '#f9e2af';
@@ -238,6 +249,7 @@ function applyTicketValidation(li, input, validIcon, isValid, taskName) {
     li.classList.remove('ticket-invalid');
     if (checkbox && !isProtected) { checkbox.disabled = false; checkbox.checked = true; }
     input.style.borderColor = '';
+    if (nameLabel) nameLabel.textContent = taskName || '';
     // Show tag dropdown
     if (tagWrap) {
       const ticketId = input.value.trim().toUpperCase();
@@ -260,7 +272,7 @@ function applyTicketValidation(li, input, validIcon, isValid, taskName) {
     if (checkbox) { checkbox.disabled = true; checkbox.checked = false; }
     input.style.borderColor = '#f38ba8';
     if (tagWrap) { tagWrap.innerHTML = ''; tagWrap.classList.add('hidden'); }
-    nameLabel.textContent = '';
+    if (nameLabel) nameLabel.textContent = '';
   }
 }
 

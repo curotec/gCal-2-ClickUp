@@ -81,6 +81,9 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.8.9
+- Fixed ticket name label: `applyTicketValidation` now creates the label element AND sets its text — previous versions had a broken reference to an undefined `nameLabel` variable
+
 ### v2.8.8
 - Fixed ticket name label not appearing in calendar event rows — switched to
   insertAdjacentElement for reliable placement after the ticket input row
