@@ -632,3 +632,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   outline: none;
   border-color: #7c3aed;
 }
+
+/* ── Ticket name label ───────────────────────────────────────────────────── */
+.ticket-name-label {
+  font-size: 10px;
+  color: #6c7086;
+  font-style: italic;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 12px;
+}

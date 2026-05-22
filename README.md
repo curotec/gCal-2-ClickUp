@@ -81,6 +81,13 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.8.6
+- Ticket name now shown below the ticket input after validation in:
+  - Calendar event rows
+  - Timetracker ticket input
+  - Timetracker confirmation panel
+  - Clears when ticket ID changes or is invalid
+
 ### v2.8.5
 - Fixed Recurrent Events Rules not pre-filling ticket IDs in popup — the
   getMatchingRule call was missing from renderEvents after a previous refactor

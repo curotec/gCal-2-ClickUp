@@ -260,6 +260,7 @@ function applyTicketValidation(li, input, validIcon, isValid, taskName) {
     if (checkbox) { checkbox.disabled = true; checkbox.checked = false; }
     input.style.borderColor = '#f38ba8';
     if (tagWrap) { tagWrap.innerHTML = ''; tagWrap.classList.add('hidden'); }
+    nameLabel.textContent = '';
   }
 }
 
@@ -573,6 +574,8 @@ function renderEvents(events, skipList, clickupEntries) {
     input.addEventListener('input', () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       const id = input.value.trim().toUpperCase();
+      const nl = input.parentElement.querySelector('.ticket-name-label');
+      if (nl) nl.textContent = '';
       if (!id || !/^[A-Z]+-\d+$/.test(id)) { runValidation(''); return; }
       debounceTimer = setTimeout(() => runValidation(id), 600);
     });
@@ -961,8 +964,21 @@ async function initTimer() {
   }
 
   let timerInputDebounce = null;
+  // Task name label for timer input
+  let timerNameLabel = input.parentElement.querySelector('.ticket-name-label');
+  if (!timerNameLabel) {
+    timerNameLabel = document.createElement('div');
+    timerNameLabel.className = 'ticket-name-label';
+    input.parentElement.appendChild(timerNameLabel);
+  }
+
   function runInputValidation(id) {
-    if (!id) { validIcon.textContent = ''; input.style.borderColor = ''; return; }
+    if (!id) {
+      validIcon.textContent = '';
+      input.style.borderColor = '';
+      timerNameLabel.textContent = '';
+      return;
+    }
     validIcon.textContent = '\u23f3';
     validIcon.style.color = '#a6adc8';
     validateTicket(id).then(({ valid, name }) => {
@@ -971,11 +987,13 @@ async function initTimer() {
         validIcon.style.color = '#f9e2af';
         validIcon.title = name || '';
         input.style.borderColor = '';
+        timerNameLabel.textContent = name || '';
       } else {
         validIcon.textContent = '\u2716';
         validIcon.style.color = '#f38ba8';
         validIcon.title = 'Ticket not found in ClickUp';
         input.style.borderColor = '#f38ba8';
+        timerNameLabel.textContent = '';
       }
     });
   }
