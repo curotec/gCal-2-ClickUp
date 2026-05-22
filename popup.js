@@ -116,7 +116,7 @@ async function getFrequentTickets() {
       const names = { ...(r.ticketNames || {}) };
       const sorted = Object.entries(cleaned)
         .sort((a, b) => b[1].length - a[1].length)
-        .slice(0, 5)
+        .slice(0, 8)
         .map(([id]) => id);
 
       // Fetch names for tickets missing from storage
@@ -139,7 +139,7 @@ async function getFrequentTickets() {
       const favIds = r.ticketFavorites || [];
       const favTickets  = favIds.slice(0, 3).map(id => ({ id, name: names[id] || '', favorite: true }));
       const freqTickets = sorted.filter(id => !favIds.includes(id)).map(id => ({ id, name: names[id] || '', favorite: false }));
-      resolve([...favTickets, ...freqTickets].slice(0, 8));
+      resolve([...favTickets, ...freqTickets].slice(0, 11));
     });
   });
 }
@@ -228,14 +228,30 @@ async function validateTicket(ticketId) {
 function applyTicketValidation(li, input, validIcon, isValid, taskName) {
   const checkbox = li.querySelector('.evt-check');
   const isProtected = li.classList.contains('status-warning') || li.classList.contains('status-danger');
+  const idx = input.dataset.index;
+  const tagWrap = li.querySelector('.tag-select-wrap[data-index="' + idx + '"]');
+
   if (isValid) {
     validIcon.textContent = '\u2714';
     validIcon.style.color = '#f9e2af';
     validIcon.title = taskName || '';
     li.classList.remove('ticket-invalid');
-    // Never re-enable a protected row (existing or conflict)
     if (checkbox && !isProtected) { checkbox.disabled = false; checkbox.checked = true; }
     input.style.borderColor = '';
+    // Show tag dropdown
+    if (tagWrap) {
+      const ticketId = input.value.trim().toUpperCase();
+      Promise.all([fetchTags(), getTagPreference(ticketId)]).then(([tags, savedTag]) => {
+        tagWrap.innerHTML = '';
+        if (tags.length) {
+          tagWrap.appendChild(buildTagSelect('tag-' + idx, savedTag, tags));
+          tagWrap.classList.remove('hidden');
+          tagWrap.querySelector('select').addEventListener('change', (e) => {
+            saveTagPreference(ticketId, e.target.value);
+          });
+        }
+      });
+    }
   } else {
     validIcon.textContent = '\u2716';
     validIcon.style.color = '#f38ba8';
@@ -243,6 +259,7 @@ function applyTicketValidation(li, input, validIcon, isValid, taskName) {
     li.classList.add('ticket-invalid');
     if (checkbox) { checkbox.disabled = true; checkbox.checked = false; }
     input.style.borderColor = '#f38ba8';
+    if (tagWrap) { tagWrap.innerHTML = ''; tagWrap.classList.add('hidden'); }
   }
 }
 
@@ -263,6 +280,112 @@ function saveBillablePreference(ticketId, billable) {
     const map = r.ticketBillable || {};
     map[ticketId] = billable;
     chrome.storage.local.set({ ticketBillable: map });
+  });
+}
+
+// ── Tags ─────────────────────────────────────────────────────────────────────
+let _cachedTags = null;
+
+async function fetchTags() {
+  if (_cachedTags) return _cachedTags;
+  return new Promise(resolve => {
+    chrome.storage.local.get(['enabledTags', 'cachedTags', 'cachedTagsTs', 'clickupToken', 'teamId'], async (r) => {
+      // Use enabledTags if set (user-filtered list)
+      if (r.enabledTags && r.enabledTags.length) {
+        _cachedTags = r.enabledTags;
+        resolve(_cachedTags);
+        return;
+      }
+      // Fall back to full cached list
+      if (r.cachedTags && r.cachedTagsTs && (Date.now() - r.cachedTagsTs) < 600000) {
+        _cachedTags = r.cachedTags;
+        resolve(_cachedTags);
+        return;
+      }
+      if (!r.clickupToken || !r.teamId) { resolve([]); return; }
+      try {
+        const res = await fetch(
+          'https://api.clickup.com/api/v2/team/' + r.teamId + '/time_entries/tags',
+          { headers: { Authorization: r.clickupToken } }
+        );
+        if (!res.ok) { resolve([]); return; }
+        const data = await res.json();
+        const tags = (data.data || []).map(t => t.name).filter(Boolean).sort();
+        _cachedTags = tags;
+        chrome.storage.local.set({ cachedTags: tags, cachedTagsTs: Date.now() });
+        resolve(tags);
+      } catch (_) { resolve([]); }
+    });
+  });
+}
+
+function getTagPreference(ticketId) {
+  return new Promise(resolve => {
+    chrome.storage.local.get(['ticketTag', 'ticketFavorites'], (r) => {
+      const map  = r.ticketTag || {};
+      // Favorites take priority — tag was explicitly set there
+      resolve(map[ticketId] || '');
+    });
+  });
+}
+
+function saveTagPreference(ticketId, tag) {
+  if (!ticketId) return;
+  chrome.storage.local.get(['ticketTag'], (r) => {
+    const map = r.ticketTag || {};
+    if (tag) map[ticketId] = tag; else delete map[ticketId];
+    chrome.storage.local.set({ ticketTag: map });
+  });
+}
+
+function buildTagSelect(id, selectedTag, tags) {
+  const sel = document.createElement('select');
+  sel.className = 'tag-select';
+  sel.id = id || '';
+  const empty = document.createElement('option');
+  empty.value = '';
+  empty.textContent = 'No tag';
+  sel.appendChild(empty);
+  tags.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t;
+    if (t === selectedTag) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  return sel;
+}
+
+// ── Event Rules matching ─────────────────────────────────────────────────────
+async function getMatchingRule(title, startDateTime) {
+  return new Promise(resolve => {
+    chrome.storage.local.get(['eventRules'], (r) => {
+      const rules = r.eventRules || [];
+      if (!rules.length) { resolve(null); return; }
+      const evTime = new Date(startDateTime);
+      const evHHMM = evTime.getHours() + ':' + String(evTime.getMinutes()).padStart(2, '0');
+      const titleLower = title.toLowerCase();
+
+      // Priority 1: title contains + time matches
+      let match = rules.find(rule =>
+        rule.ticketId &&
+        titleLower.includes(rule.title.toLowerCase()) &&
+        rule.time && rule.time === evHHMM
+      );
+      // Priority 2: title contains only
+      if (!match) match = rules.find(rule =>
+        rule.ticketId &&
+        titleLower.includes(rule.title.toLowerCase()) &&
+        !rule.time
+      );
+      // Priority 3: time only
+      if (!match) match = rules.find(rule =>
+        rule.ticketId &&
+        !rule.title &&
+        rule.time === evHHMM
+      );
+      resolve(match || null);
+    });
   });
 }
 
@@ -368,13 +491,14 @@ function renderEvents(events, skipList, clickupEntries) {
           '</div>' : '') +
         (!skipped ?
           '<div class="ticket-input-row">' +
-            '<div class="ticket-combo" data-index="' + i + '">' +
+            '<div class="ticket-combo ticket-combo-narrow" data-index="' + i + '">' +
               '<input type="text" class="ticket-manual" data-index="' + i +
               '" placeholder="Ticket ID (e.g. CTK-1234)" autocomplete="off"' +
               (ticketId ? ' value="' + ticketId + '"' : '') + ' />' +
               '<ul class="ticket-dropdown" data-index="' + i + '"></ul>' +
             '</div>' +
             '<span class="ticket-valid-icon" data-index="' + i + '"></span>' +
+            '<div class="tag-select-wrap hidden" data-index="' + i + '"></div>' +
           '</div>' : '') +
       '</div>';
     ul.appendChild(li);
@@ -492,19 +616,21 @@ function renderEvents(events, skipList, clickupEntries) {
 // ── Time sum ─────────────────────────────────────────────────────────────────
 function updateTimeSum() {
   let totalMs = 0;
+  let selectedCount = 0;
   document.querySelectorAll('.evt-check:checked:not([disabled])').forEach(cb => {
     const i   = parseInt(cb.dataset.index);
     const evt = eventsCache[i];
     if (!evt) return;
     totalMs += new Date(evt.end.dateTime) - new Date(evt.start.dateTime);
+    selectedCount++;
   });
   const h = Math.floor(totalMs / 3600000);
   const m = Math.floor((totalMs % 3600000) / 60000);
-  const label = totalMs > 0
-    ? (h ? h + 'h ' : '') + m + 'm'
-    : '0m';
-  const el = document.getElementById('timeSum');
-  if (el) el.textContent = label;
+  const timeLabel = totalMs > 0 ? (h ? h + 'h ' : '') + m + 'm' : '0m';
+  const timeSumEl = document.getElementById('timeSum');
+  if (timeSumEl) timeSumEl.textContent = timeLabel;
+  const selCountEl = document.getElementById('selectedCount');
+  if (selCountEl) selCountEl.textContent = selectedCount ? '· ' + selectedCount + ' selected' : '';
 }
 
 // ── Select All ────────────────────────────────────────────────────────────────
@@ -603,6 +729,7 @@ document.getElementById('importBtn').addEventListener('click', async () => {
         endTime:   evt.end.dateTime,
         title,
         billable:      evt.billable,
+        tag:           evt.tag || '',
         clickupToken:  settings.clickupToken,
         teamId:        settings.teamId
       });
@@ -735,8 +862,16 @@ function renderTimerConfirm(ticketId, durationMs, billable, rawMs, description) 
   if (rawEl && rawMs) rawEl.textContent = formatHMS(rawMs);
   document.getElementById('timerLog').disabled = true;
   wireCombo(document.getElementById('timerConfirmTicket'), document.getElementById('timerConfirmDropdown'));
-  // Validate pre-filled ticket if present
   if (ticketId) validateTimerTicket();
+  // Load tag dropdown
+  Promise.all([fetchTags(), getTagPreference(ticketId)]).then(([tags, savedTag]) => {
+    const wrap = document.getElementById('timerTagWrap');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    if (tags.length) {
+      wrap.appendChild(buildTagSelect('timerTagSelect', savedTag, tags));
+    }
+  });
 }
 
 function showTimerConfirm(ticketId, elapsedMs) {
@@ -871,6 +1006,9 @@ async function initTimer() {
 
 // ── Timer controls ────────────────────────────────────────────────────────────
 document.getElementById('timerBtn').addEventListener('click', () => {
+  // Block starting a new timer if confirm panel is pending
+  if (!document.getElementById('timerConfirm').classList.contains('hidden')) return;
+
   chrome.storage.local.get([TIMER_KEY], (r) => {
     const t = r[TIMER_KEY];
     if (t && t.running) {
@@ -938,11 +1076,14 @@ document.getElementById('timerLog').addEventListener('click', async () => {
   const startTime = endTime - durationMs;
 
   const description = document.getElementById('timerDescription').value.trim();
+  const tagSelect   = document.getElementById('timerTagSelect');
+  const tag         = tagSelect ? tagSelect.value : '';
+  if (tag && ticketId) saveTagPreference(ticketId, tag);
   const result = await new Promise(resolve => chrome.runtime.sendMessage({
     type: 'IMPORT_TIME_ENTRY', ticketId,
     startTime: new Date(startTime).toISOString(),
     endTime:   new Date(endTime).toISOString(),
-    title: description, billable,
+    title: description, billable, tag,
     clickupToken: settings.clickupToken, teamId: settings.teamId
   }, resolve));
 
@@ -983,15 +1124,12 @@ document.getElementById('timerPauseBtn').addEventListener('click', () => {
 
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'TIMER_AUTO_STOP') {
-    chrome.storage.local.get([TIMER_KEY], (r) => {
-      const t = r[TIMER_KEY];
-      if (t && t.running) {
-        const elapsed = t.paused
-          ? (t.pausedElapsed || 0)
-          : (t.pausedElapsed || 0) + getElapsed(t.startTs);
-        chrome.storage.local.remove([TIMER_KEY]);
-        stopTimerUI();
-        showTimerConfirm(t.ticketId, elapsed);
+    // Confirm state already saved by background.js — just restore UI
+    stopTimerUI();
+    chrome.storage.local.get(['adHocTimerConfirm'], (r) => {
+      if (r.adHocTimerConfirm) {
+        const { ticketId, durationMs, billable, rawMs, description } = r.adHocTimerConfirm;
+        renderTimerConfirm(ticketId, durationMs, billable, rawMs, description);
       }
     });
   }

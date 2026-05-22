@@ -92,12 +92,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const end      = new Date(endTime).getTime();
         const duration = end - start;
 
+        const entryBody = { description: title, start, end, duration, tid: taskId, billable: billable !== false };
+        if (message.tag) entryBody.tags = [{ name: message.tag }];
         const entryRes = await fetch(
           `https://api.clickup.com/api/v2/team/${teamId}/time_entries`,
           {
             method: 'POST',
             headers: { Authorization: clickupToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ description: title, start, end, duration, tid: taskId, billable: billable !== false })
+            body: JSON.stringify(entryBody)
           }
         );
         if (!entryRes.ok) {
@@ -175,12 +177,24 @@ chrome.notifications.onButtonClicked.addListener((notifId, btnIdx) => {
         }
       });
     } else {
-      // Stop
+      // Stop — save confirm state before removing timer
       clearTimerTimeouts();
       chrome.storage.local.get([TIMER_KEY], (r) => {
         const t = r[TIMER_KEY];
         if (t && t.running) {
+          const elapsed = t.paused
+            ? (t.pausedElapsed || 0)
+            : (t.pausedElapsed || 0) + (Date.now() - t.startTs);
+          const rounded = Math.ceil(Math.ceil(elapsed / 60000) / 5) * 5 * 60000;
+          chrome.storage.local.set({ adHocTimerConfirm: {
+            ticketId: t.ticketId || '',
+            durationMs: rounded,
+            billable: true,
+            rawMs: elapsed,
+            description: ''
+          }});
           chrome.storage.local.remove([TIMER_KEY]);
+          stopBadge();
           chrome.runtime.sendMessage({ type: 'TIMER_AUTO_STOP' }).catch(() => {});
         }
       });

@@ -81,6 +81,57 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.8.0
+- Added Event Rules in ⚙️ Settings:
+  - Load upcoming calendar events (next 2 weeks) as rule suggestions
+  - Click a suggestion to create a rule, or add manually with title + time
+  - Each rule has ticket ID (validated), billable toggle, tag dropdown
+  - Matching: title contains (case-insensitive) + optional time (HH:MM)
+  - Priority: title+time match > title only > time only
+  - On event load, matching events auto-fill ticket, billable and tag
+- Fixed ticket suggestions dropdown width (min 300px, no longer clipped
+  to the narrow ticket input width)
+
+### v2.7.4
+- Ticket suggestions dropdown now shows all options without a scrollbar
+
+### v2.7.3
+- Tag Manager checklist height doubled (260px → 520px) to show more tags
+- Ticket suggestions dropdown now shows up to 8 frequent tickets (was 5),
+  plus up to 3 favorites, for a total of 11 suggestions
+
+### v2.7.2
+- Tag Manager moved above Favorite Tickets in settings
+- Tag Manager checklist now supports drag-and-drop reordering — order is
+  preserved in enabledTags and restored on next open
+- Favorite tickets now have an optional tag dropdown in settings — pre-fills
+  the tag dropdown in the popup when that ticket is selected
+
+### v2.7.1
+- Added Tag Manager in ⚙️ Settings:
+  - Fetches all workspace tags from ClickUp on first open
+  - Checklist lets you select which tags appear in the dropdown
+  - Refresh button to reload tags from ClickUp
+  - Select all / Select none shortcuts
+  - Tag dropdowns in popup only show enabled tags
+
+### v2.7.0
+- Added optional tag selector to time entries:
+  - Tags fetched from ClickUp workspace time entry tags API (cached 10 min)
+  - Tag dropdown appears to the right of the ticket input after validation
+  - Ticket input narrowed to half-width to make room for the tag dropdown
+  - Tag preference saved per ticket and pre-fills on next use
+  - Tag also available in timetracker confirmation panel
+  - Tag sent to ClickUp when logging time entries
+- Added selected event count next to event count (e.g. "11 events found · 3 selected")
+
+### v2.6.3
+- Fixed auto-stop losing tracked time — confirm panel state is now saved to
+  storage before the timer is cleared, so time is never lost on auto-stop
+- Notification Stop button also saves confirm state correctly
+- Starting a new timer is blocked while a confirmation panel is pending
+- Notification message updated to clarify time is saved
+
 ### v2.6.2
 - Added elapsed time badge on the extension icon:
   - Green badge shows elapsed minutes/hours when timer is running (e.g. 14m, 1h)

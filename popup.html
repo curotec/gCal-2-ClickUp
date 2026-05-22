@@ -61,6 +61,10 @@
           placeholder="What did you work on?"></textarea>
       </div>
       <div class="timer-confirm-row">
+        <label>Tag</label>
+        <div id="timerTagWrap" class="tag-select-wrap-confirm"></div>
+      </div>
+      <div class="timer-confirm-row">
         <label>Duration</label>
         <span id="durDisplay" class="dur-value">0h 00m</span>
       </div>
@@ -80,6 +84,7 @@
     <div id="eventList" class="hidden">
       <div class="section-header">
         <span id="eventCount"></span>
+        <span id="selectedCount" class="selected-count"></span>
         <span id="timeSum" class="time-sum"></span>
         <label class="select-all-label">
           <input type="checkbox" id="selectAll" checked /> Select all

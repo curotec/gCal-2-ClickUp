@@ -63,6 +63,40 @@
     </section>
 
     <section>
+      <h2>Event Rules</h2>
+      <p class="hint">
+        Map recurring calendar events to a ticket ID, tag and billable status.
+        When events load, matching events are pre-filled automatically.
+        Matching is by title (contains) and optional time.
+      </p>
+      <button id="loadUpcomingBtn">&#128197; Load upcoming events</button>
+      <span id="upcomingStatus"></span>
+      <div id="upcomingSuggestions" class="upcoming-suggestions hidden"></div>
+      <div id="eventRulesList" style="margin-top:12px;"></div>
+      <div id="eventRulesEmpty" class="hint" style="display:none;">No rules yet. Load upcoming events or add one manually.</div>
+      <div class="add-rule-row" style="margin-top:10px;">
+        <input type="text" id="newRuleTitle" placeholder="Event title keyword" autocomplete="off" />
+        <input type="text" id="newRuleTime" placeholder="HH:MM (optional)" autocomplete="off" style="width:90px;" />
+        <button id="addRuleBtn" class="primary">Add Rule</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Tag Manager</h2>
+      <p class="hint">
+        Select which ClickUp tags appear in the tag dropdown when logging time.
+        Drag to reorder. Click <strong>Refresh</strong> to reload from ClickUp.
+      </p>
+      <div class="tag-manager-actions">
+        <button id="refreshTagsBtn">&#8635; Refresh from ClickUp</button>
+        <button id="selectAllTagsBtn">Select all</button>
+        <button id="selectNoneTagsBtn">Select none</button>
+        <span id="tagManagerStatus"></span>
+      </div>
+      <div id="tagChecklist" class="tag-checklist"></div>
+    </section>
+
+    <section>
       <h2>Favorite Tickets</h2>
       <p class="hint">
         Favorites appear at the top of every ticket dropdown. Add tickets manually
@@ -84,6 +118,40 @@
         <button id="addFavBtn" class="primary" disabled>Add</button>
         <span id="addFavStatus"></span>
       </div>
+    </section>
+
+    <section>
+      <h2>Event Rules</h2>
+      <p class="hint">
+        Map recurring calendar events to a ticket ID, tag and billable status.
+        When events load, matching events are pre-filled automatically.
+        Matching is by title (contains) and optional time.
+      </p>
+      <button id="loadUpcomingBtn">&#128197; Load upcoming events</button>
+      <span id="upcomingStatus"></span>
+      <div id="upcomingSuggestions" class="upcoming-suggestions hidden"></div>
+      <div id="eventRulesList" style="margin-top:12px;"></div>
+      <div id="eventRulesEmpty" class="hint" style="display:none;">No rules yet. Load upcoming events or add one manually.</div>
+      <div class="add-rule-row" style="margin-top:10px;">
+        <input type="text" id="newRuleTitle" placeholder="Event title keyword" autocomplete="off" />
+        <input type="text" id="newRuleTime" placeholder="HH:MM (optional)" autocomplete="off" style="width:90px;" />
+        <button id="addRuleBtn" class="primary">Add Rule</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Tag Manager</h2>
+      <p class="hint">
+        Select which ClickUp tags appear in the tag dropdown when logging time.
+        Click <strong>Refresh</strong> to reload tags from ClickUp.
+      </p>
+      <div class="tag-manager-actions">
+        <button id="refreshTagsBtn">&#8635; Refresh from ClickUp</button>
+        <button id="selectAllTagsBtn">Select all</button>
+        <button id="selectNoneTagsBtn">Select none</button>
+        <span id="tagManagerStatus"></span>
+      </div>
+      <div id="tagChecklist" class="tag-checklist"></div>
     </section>
 
     <section>

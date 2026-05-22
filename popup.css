@@ -251,7 +251,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   position: absolute;
   top: 100%;
   left: 0;
-  right: 0;
   z-index: 100;
   margin: 2px 0 0;
   padding: 4px 0;
@@ -260,8 +259,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   border: 1px solid #45475a;
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  max-height: 160px;
-  overflow-y: auto;
+  min-width: 300px;
+  width: max-content;
+  max-width: 380px;
 }
 
 .ticket-dropdown.open {
@@ -588,3 +588,43 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .timer-resume:hover { background: #27873f; }
+
+.selected-count {
+  font-size: 11px;
+  color: #a6adc8;
+  margin-left: 4px;
+}
+
+/* ── Narrow ticket combo (half width) ───────────────────────────────────── */
+.ticket-combo-narrow {
+  flex: 0 0 48%;
+  max-width: 48%;
+}
+
+/* ── Tag select ──────────────────────────────────────────────────────────── */
+.tag-select-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.tag-select-wrap.hidden { display: none; }
+
+.tag-select-wrap-confirm {
+  flex: 1;
+}
+
+.tag-select {
+  width: 100%;
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid #45475a;
+  background: #313244;
+  color: #cdd6f4;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tag-select:focus {
+  outline: none;
+  border-color: #7c3aed;
+}
