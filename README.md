@@ -81,6 +81,11 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.8.5
+- Fixed Recurrent Events Rules not pre-filling ticket IDs in popup — the
+  getMatchingRule call was missing from renderEvents after a previous refactor
+- Renamed "Event Rules" section to "Recurrent Events Rules"
+
 ### v2.8.4
 - Fixed ticket names not showing in Event Rules dropdown for new rule rows
 - Fixed popup horizontal scroll caused by wide dropdown (reduced to 270px)

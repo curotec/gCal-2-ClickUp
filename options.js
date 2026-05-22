@@ -259,7 +259,7 @@ document.getElementById('debugMode').addEventListener('change', (e) => {
   });
 });
 
-// ── Event Rules ──────────────────────────────────────────────────────────────
+// ── Recurrent Events Rules ──────────────────────────────────────────────────────────────
 // ── Ticket suggestions for rule rows ─────────────────────────────────────────
 function getTicketSuggestions(callback) {
   // Always do a fresh read from storage to ensure names are current

@@ -611,6 +611,37 @@ function renderEvents(events, skipList, clickupEntries) {
       });
     }, i * 300);
   });
+
+  // Apply recurrent event rules after validation stagger completes
+  setTimeout(() => {
+    events.forEach((evt, i) => {
+      const rawTitle  = evt.summary || '';
+      const hasTicket = (rawTitle + ' ' + (evt.description || '')).match(TICKET_REGEX);
+      if (hasTicket) return;
+      const input = document.querySelector('.ticket-manual[data-index="' + i + '"]');
+      const li    = input && input.closest('.event-item');
+      if (!input || !li || input.value) return;
+      getMatchingRule(rawTitle, evt.start.dateTime).then(rule => {
+        if (!rule) return;
+        input.value = rule.ticketId;
+        const billableCheck = li.querySelector('.billable-check');
+        if (billableCheck) billableCheck.checked = rule.billable !== false;
+        const validIcon = li.querySelector('.ticket-valid-icon');
+        if (validIcon) {
+          validIcon.textContent = '⏳'; validIcon.style.color = '#a6adc8';
+          validateTicket(rule.ticketId).then(({ valid, name }) => {
+            applyTicketValidation(li, input, validIcon, valid, name);
+            if (valid && rule.tag) {
+              setTimeout(() => {
+                const tagWrap = li.querySelector('.tag-select-wrap');
+                if (tagWrap) { const sel = tagWrap.querySelector('select'); if (sel) sel.value = rule.tag; }
+              }, 200);
+            }
+          });
+        }
+      });
+    });
+  }, prefilled.length * 300 + 500);
 }
 
 // ── Time sum ─────────────────────────────────────────────────────────────────
