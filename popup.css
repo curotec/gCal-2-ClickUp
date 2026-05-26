@@ -360,6 +360,18 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   border-color: #7c3aed;
 }
 
+.timer-ticket-row .ticket-valid-icon {
+  align-self: center;
+  margin-top: 0;
+  line-height: 1;
+}
+
+.timer-ticket-row .star-btn {
+  align-self: center;
+  line-height: 1;
+  margin-top: 0;
+}
+
 .timer-controls {
   display: flex;
   align-items: center;

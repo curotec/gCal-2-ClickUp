@@ -81,6 +81,10 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.9.1
+- Update checker now points to GitHub repo (alberto-curotec/gCal-2-ClickUp)
+- Fixed vertical alignment of checkmark and star icons in the timer ticket row
+
 ### v2.9.0
 - Removed leading dot from selected count label
 - Matched font size of selected count and time sum to event count

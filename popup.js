@@ -16,7 +16,7 @@ const TICKET_REGEX   = /\b([A-Z]+-\d+)\b/;
 const TIMER_KEY      = 'adHocTimer';
 
 // ── Update checker ───────────────────────────────────────────────────────────
-const MANIFEST_URL = 'https://bitbucket.org/curotec/gcal-2-clickup/raw/main/manifest.json';
+const MANIFEST_URL = 'https://raw.githubusercontent.com/alberto-curotec/gCal-2-ClickUp/main/manifest.json';
 
 async function checkForUpdate() {
   try {
