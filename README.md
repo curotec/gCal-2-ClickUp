@@ -81,6 +81,9 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.9.3
+- Added margin-top to .timer-controls for visual separation from ticket name label
+
 ### v2.9.2
 - Fixed timer icon alignment: moved ticket name label outside the combo div so it no longer inflates the row height
 - Added `ticket-name-label:empty { display:none }` to prevent empty labels from taking up space
