@@ -976,12 +976,14 @@ async function initTimer() {
   }
 
   let timerInputDebounce = null;
-  // Task name label for timer input
-  let timerNameLabel = input.parentElement.querySelector('.ticket-name-label');
+  // Task name label for timer input — lives AFTER the timer-ticket-row, not inside the combo
+  const timerTicketRow = document.querySelector('.timer-ticket-row');
+  let timerNameLabel = document.getElementById('timerNameLabel');
   if (!timerNameLabel) {
     timerNameLabel = document.createElement('div');
     timerNameLabel.className = 'ticket-name-label';
-    input.parentElement.appendChild(timerNameLabel);
+    timerNameLabel.id = 'timerNameLabel';
+    timerTicketRow.insertAdjacentElement('afterend', timerNameLabel);
   }
 
   function runInputValidation(id) {

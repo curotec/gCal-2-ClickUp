@@ -646,6 +646,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 /* ── Ticket name label ───────────────────────────────────────────────────── */
+.ticket-name-label:empty { display: none; }
+
 .ticket-name-label {
   font-size: 12px;
   color: #6c7086;
@@ -654,5 +656,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-height: 0;
   min-height: 14px;
 }

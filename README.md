@@ -81,6 +81,10 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.9.2
+- Fixed timer icon alignment: moved ticket name label outside the combo div so it no longer inflates the row height
+- Added `ticket-name-label:empty { display:none }` to prevent empty labels from taking up space
+
 ### v2.9.1
 - Update checker now points to GitHub repo (alberto-curotec/gCal-2-ClickUp)
 - Fixed vertical alignment of checkmark and star icons in the timer ticket row
