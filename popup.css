@@ -173,6 +173,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   margin-top: 10px;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 #progressLog {

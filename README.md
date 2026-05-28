@@ -81,6 +81,16 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.9.6
+- Skip list is now pre-populated on fresh install (Lunch, Break, OOO, Out of office, PTO)
+
+### v2.9.5
+- Fixed skip list intermittently not applying: migrated skipList storage from chrome.storage.sync to chrome.storage.local so all read paths are consistent
+
+### v2.9.4
+- Session persistence: loaded events are saved to storage and restored when the popup reopens
+- Added Cancel button to discard the session and return to the date picker
+
 ### v2.9.3
 - Added margin-top to .timer-controls for visual separation from ticket name label
 

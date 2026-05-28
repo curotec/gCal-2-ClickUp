@@ -198,10 +198,14 @@ async function fetchEvents(date, token) {
   return ((await res.json()).items || []).filter(e => e.start && e.start.dateTime);
 }
 
+const DEFAULT_SKIP_LIST = 'Lunch\nBreak\nOOO\nOut of office\nPTO';
+
 async function getSkipList() {
   return new Promise(resolve => {
-    chrome.storage.sync.get(['skipList'], (r) => {
-      resolve((r.skipList || '').split('\n').map(s => s.trim().toLowerCase()).filter(Boolean));
+    chrome.storage.local.get(['skipList'], (r) => {
+      const raw = r.skipList !== undefined ? r.skipList : DEFAULT_SKIP_LIST;
+      if (r.skipList === undefined) chrome.storage.local.set({ skipList: DEFAULT_SKIP_LIST });
+      resolve(raw.split('\n').map(s => s.trim().toLowerCase()).filter(Boolean));
     });
   });
 }
@@ -719,6 +723,8 @@ document.getElementById('loadBtn').addEventListener('click', async () => {
     setStatus('');
     document.getElementById('timerSection').classList.add('hidden');
     renderEvents(events, skipList, clickupEntries);
+    // Persist session so popup can restore it if closed
+    chrome.storage.local.set({ calSession: { date, events, clickupEntries } });
   } catch (err) {
     setStatus('Error: ' + err.message, true);
   }
@@ -791,11 +797,33 @@ document.getElementById('importBtn').addEventListener('click', async () => {
     await new Promise(r => setTimeout(r, 400));
   }
   log('Import complete!', 'ok');
+  chrome.storage.local.remove('calSession');
   document.getElementById('timerSection').classList.remove('hidden');
 });
 
 // ── Init date picker ──────────────────────────────────────────────────────────
+// ── Cancel ───────────────────────────────────────────────────────────────────
+document.getElementById('cancelBtn').addEventListener('click', () => {
+  chrome.storage.local.remove('calSession');
+  document.getElementById('eventList').classList.add('hidden');
+  document.getElementById('timerSection').classList.remove('hidden');
+  eventsCache = [];
+  setStatus('');
+});
+
 (function init() {
+  // Restore previous session if popup was closed mid-flow
+  chrome.storage.local.get(['calSession', 'skipList'], async (r) => {
+    if (r.calSession) {
+      const { date, events, clickupEntries } = r.calSession;
+      document.getElementById('datePicker').value = date;
+      const skipList = (r.skipList || '').split('\n').map(s => s.trim().toLowerCase()).filter(Boolean);
+      document.getElementById('timerSection').classList.add('hidden');
+      renderEvents(events, skipList, clickupEntries);
+      setStatus('');
+    }
+  });
+
   const today = new Date();
   document.getElementById('datePicker').value =
     today.getFullYear() + '-' +

@@ -200,8 +200,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('debugMode').checked = !!r.debugMode;
   });
 
-  chrome.storage.sync.get(['skipList'], (r) => {
-    document.getElementById('skipList').value = r.skipList || 'Lunch\nBreak\nOOO\nOut of office\nPTO';
+  const DEFAULT_SKIP = 'Lunch\nBreak\nOOO\nOut of office\nPTO';
+  chrome.storage.local.get(['skipList'], (r) => {
+    if (r.skipList === undefined) {
+      // First install — persist the defaults so popup.js can read them
+      chrome.storage.local.set({ skipList: DEFAULT_SKIP });
+      document.getElementById('skipList').value = DEFAULT_SKIP;
+    } else {
+      document.getElementById('skipList').value = r.skipList;
+    }
   });
 });
 
@@ -243,7 +250,7 @@ document.getElementById('saveTeamBtn').addEventListener('click', () => {
 // Save Skip List
 document.getElementById('saveSkipBtn').addEventListener('click', () => {
   const val = document.getElementById('skipList').value;
-  chrome.storage.sync.set({ skipList: val }, () => {
+  chrome.storage.local.set({ skipList: val }, () => {
     const s = document.getElementById('saveSkipStatus');
     s.textContent = 'Saved!';
     setTimeout(() => s.textContent = '', 2000);
