@@ -81,6 +81,13 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.9.8
+- Fixed ticket dropdown becoming transparent on validation: opacity is now applied only to title/meta/checkbox elements, never to ancestors of the dropdown, so no stacking context is created where the dropdown lives
+
+### v2.9.7
+- Default date is now yesterday instead of today
+- Click-to-edit event title: click any event title to modify the description sent to ClickUp (Enter to confirm, Escape to revert)
+
 ### v2.9.6
 - Skip list is now pre-populated on fresh install (Lunch, Break, OOO, Out of office, PTO)
 

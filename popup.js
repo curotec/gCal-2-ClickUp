@@ -496,8 +496,8 @@ function renderEvents(events, skipList, clickupEntries) {
         ((!skipped && status === 'clean') ? 'checked="checked"' : '') + ' ' +
         ((skipped || status === 'warning' || status === 'danger') ? 'disabled="disabled"' : '') + ' />' +
       '<div class="event-info">' +
-        '<span class="event-title" title="' + title.replace(/"/g, '&quot;') + '">' +
-          '<span class="event-title-text">' + title + '</span>' + statusBadge +
+        '<span class="event-title">' +
+          '<span class="event-title-text editable-title" data-index="' + i + '" title="' + (!skipped ? 'Click to edit' : '') + '" contenteditable="' + (!skipped ? 'true' : 'false') + '">' + title + '</span>' + statusBadge +
         '</span>' +
         '<div class="event-meta">' + formatTime(start) + ' \u2013 ' + formatTime(end) +
           ' \u00a0\u00b7\u00a0 ' + durationLabel(start, end) + '</div>' +
@@ -550,6 +550,28 @@ function renderEvents(events, skipList, clickupEntries) {
         btn.dataset.ticket = id;
         toggleFavorite(id, names[id] || '', btn);
       });
+    });
+  });
+
+  // Wire click-to-edit titles
+  document.querySelectorAll('.editable-title').forEach(span => {
+    span.addEventListener('focus', () => {
+      // Select all text on focus for easy replacement
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    });
+    span.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
+      if (e.key === 'Escape') {
+        // Restore original title
+        const i = parseInt(span.dataset.index);
+        const orig = eventsCache[i] && (eventsCache[i].summary || '(No title)');
+        if (orig) span.textContent = orig;
+        span.blur();
+      }
     });
   });
 
@@ -748,7 +770,8 @@ document.getElementById('importBtn').addEventListener('click', async () => {
     const isInvalid    = validIcon && validIcon.textContent === '✖';
     return Object.assign({}, evt, {
       ticketId: isInvalid ? null : (autoTicket || manualTicket || null),
-      billable: billableCheck ? billableCheck.checked : true
+      billable: billableCheck ? billableCheck.checked : true,
+      _index: i
     });
   });
 
@@ -771,7 +794,9 @@ document.getElementById('importBtn').addEventListener('click', async () => {
   if (!settings.teamId)       { log('No ClickUp Team ID set. Please add it in \u2699\ufe0f Settings.', 'err'); return; }
 
   for (const evt of toImport) {
-    const title = cleanTitle(evt.summary || '(No title)');
+    // Use edited title if user changed it, otherwise fall back to original
+    const titleSpan = document.querySelector('.editable-title[data-index="' + evt._index + '"]');
+    const title = titleSpan ? (titleSpan.textContent.trim() || cleanTitle(evt.summary || '(No title)')) : cleanTitle(evt.summary || '(No title)');
     log('Importing: "' + title + '" [' + evt.ticketId + ']', 'info');
     try {
       const result = await chrome.runtime.sendMessage({
@@ -824,11 +849,12 @@ document.getElementById('cancelBtn').addEventListener('click', () => {
     }
   });
 
-  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
   document.getElementById('datePicker').value =
-    today.getFullYear() + '-' +
-    String(today.getMonth() + 1).padStart(2, '0') + '-' +
-    String(today.getDate()).padStart(2, '0');
+    yesterday.getFullYear() + '-' +
+    String(yesterday.getMonth() + 1).padStart(2, '0') + '-' +
+    String(yesterday.getDate()).padStart(2, '0');
 })();
 
 document.getElementById('openOptions').addEventListener('click', (e) => {
