@@ -924,6 +924,178 @@ document.getElementById('cancelBtn').addEventListener('click', () => {
   setStatus('');
 });
 
+// ── CSV Upload ────────────────────────────────────────────────────────────────
+
+const CSV_HEADER_KEYWORDS = ['title', 'start', 'end', 'tag'];
+
+function parseCSVLine(line) {
+  const fields = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && i + 1 < line.length && line[i + 1] === '"') {
+        current += '"'; i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        fields.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+  }
+  fields.push(current.trim());
+  return fields;
+}
+
+function detectCSVHeader(firstRowFields) {
+  const lower = firstRowFields.map(f => f.toLowerCase().trim());
+  return ['title', 'start', 'end'].every(kw => lower.includes(kw));
+}
+
+function buildColumnMap(headerFields) {
+  const map = {};
+  headerFields.forEach((f, i) => {
+    const key = f.toLowerCase().trim();
+    if (CSV_HEADER_KEYWORDS.includes(key)) map[key] = i;
+  });
+  return map;
+}
+
+function isValidISO(str) {
+  if (!str) return false;
+  return !isNaN(new Date(str).getTime());
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return { error: 'CSV file is empty.' };
+
+  const firstFields = parseCSVLine(lines[0]);
+  const hasHeader = detectCSVHeader(firstFields);
+
+  let colMap, dataStart;
+  if (hasHeader) {
+    colMap = buildColumnMap(firstFields);
+    dataStart = 1;
+  } else {
+    colMap = { title: 0, start: 1, end: 2, tag: 3 };
+    dataStart = 0;
+  }
+
+  if (colMap.title === undefined || colMap.start === undefined || colMap.end === undefined) {
+    return { error: 'CSV must have title, start, and end columns.' };
+  }
+
+  const events = [];
+  const errors = [];
+
+  for (let i = dataStart; i < lines.length; i++) {
+    const rowNum = i + 1;
+    const fields = parseCSVLine(lines[i]);
+    const title    = fields[colMap.title];
+    const startRaw = fields[colMap.start];
+    const endRaw   = fields[colMap.end];
+    const tag      = colMap.tag !== undefined ? (fields[colMap.tag] || '') : '';
+
+    if (!title) { errors.push('Row ' + rowNum + ': missing title.'); continue; }
+    if (!startRaw || !isValidISO(startRaw)) {
+      errors.push('Row ' + rowNum + ': invalid or missing start datetime' +
+        (startRaw ? ' ("' + startRaw + '")' : '') + '.'); continue;
+    }
+    if (!endRaw || !isValidISO(endRaw)) {
+      errors.push('Row ' + rowNum + ': invalid or missing end datetime' +
+        (endRaw ? ' ("' + endRaw + '")' : '') + '.'); continue;
+    }
+
+    const startDt = new Date(startRaw);
+    const endDt   = new Date(endRaw);
+    if (endDt <= startDt) {
+      errors.push('Row ' + rowNum + ': end time must be after start time.'); continue;
+    }
+
+    const summary = tag ? title + ' ' + tag : title;
+    events.push({
+      summary,
+      description: tag || '',
+      start: { dateTime: startDt.toISOString() },
+      end:   { dateTime: endDt.toISOString() },
+      _csvRow: rowNum
+    });
+  }
+
+  if (errors.length) return { error: 'CSV validation failed:\n' + errors.join('\n') };
+  if (!events.length) return { error: 'CSV contains no data rows.' };
+  return { events };
+}
+
+document.getElementById('csvBtn').addEventListener('click', () => {
+  document.getElementById('csvFile').value = '';
+  document.getElementById('csvFile').click();
+});
+
+document.getElementById('csvFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  setStatus('Reading CSV…');
+  document.getElementById('eventList').classList.add('hidden');
+  document.getElementById('importProgress').classList.add('hidden');
+  document.getElementById('timerSection').classList.remove('hidden');
+
+  try {
+    const text = await file.text();
+    const result = parseCSV(text);
+    if (result.error) { setStatus(result.error, true); return; }
+
+    const events = result.events;
+
+    // Auto-derive date from first event, update picker
+    const firstDate = new Date(events[0].start.dateTime);
+    const yyyy = firstDate.getFullYear();
+    const mm   = String(firstDate.getMonth() + 1).padStart(2, '0');
+    const dd   = String(firstDate.getDate()).padStart(2, '0');
+    const dateStr = yyyy + '-' + mm + '-' + dd;
+    document.getElementById('datePicker').value = dateStr;
+
+    // Same pipeline as calendar load
+    const [skipList, settings] = await Promise.all([
+      getSkipList(),
+      new Promise(resolve => chrome.storage.local.get(['clickupToken', 'teamId'], resolve))
+    ]);
+
+    let clickupEntries = [];
+    if (settings.clickupToken && settings.teamId) {
+      setStatus('Checking existing ClickUp entries…');
+      const [userResp, existing] = await Promise.all([
+        new Promise(resolve => chrome.runtime.sendMessage({ type: 'GET_CLICKUP_USER', clickupToken: settings.clickupToken }, resolve)),
+        new Promise(resolve => chrome.runtime.sendMessage({ type: 'GET_CLICKUP_ENTRIES', clickupToken: settings.clickupToken, teamId: settings.teamId, date: dateStr }, resolve))
+      ]);
+      if (userResp && userResp.timezone) {
+        const tzEl = document.getElementById('clickupTimezone');
+        if (tzEl) tzEl.textContent = 'ClickUp timezone: ' + userResp.timezone;
+      }
+      if (existing && existing.entries) clickupEntries = existing.entries;
+    }
+
+    setStatus('Loaded ' + events.length + ' event(s) from CSV.');
+    document.getElementById('timerSection').classList.add('hidden');
+    renderEvents(events, skipList, clickupEntries);
+    chrome.storage.local.set({ calSession: { date: dateStr, events, clickupEntries } });
+  } catch (err) {
+    setStatus('CSV error: ' + err.message, true);
+  }
+});
+
 (function init() {
   // Restore previous session if popup was closed mid-flow
   chrome.storage.local.get(['calSession', 'skipList'], async (r) => {

@@ -63,6 +63,8 @@ Open ⚙️ Settings inside the extension and fill in:
 
 ## Usage
 
+### Google Calendar (default)
+
 1. Click the extension icon
 2. Select a date and click **Load Events**
 3. Events are cross-checked against existing ClickUp entries:
@@ -72,6 +74,31 @@ Open ⚙️ Settings inside the extension and fill in:
 5. Adjust billable checkboxes as needed
 6. Click **Import Selected**
 
+### CSV Upload
+
+Click the **📄 CSV** button next to "Load Events" and select a `.csv` file.
+
+**CSV format:**
+
+```csv
+title,start,end,tag
+Standup,2026-06-24T09:00:00-03:00,2026-06-24T09:15:00-03:00,CTK-1234
+Feature work,2026-06-24T10:00:00,2026-06-24T12:00:00,CTK-5678
+```
+
+| Column | Required | Notes |
+|---|---|---|
+| `title` | Yes | Event title |
+| `start` | Yes | ISO 8601 datetime. Explicit TZ offset honored; no offset = local time |
+| `end` | Yes | ISO 8601 datetime. Must be after `start` |
+| `tag` | No | Ticket ID (e.g. `CTK-1234`). Appended to title for ticket detection |
+
+- **Header row** is optional. Auto-detected (case-insensitive) when the first row contains `title`, `start`, `end`; otherwise columns are parsed positionally (title, start, end, tag).
+- **Date picker** is auto-set to the date of the first CSV row.
+- **CSV replaces** any previously loaded calendar events.
+- **Validation** blocks the entire import if any row is malformed — the error identifies the row number and what's wrong.
+- **Render pipeline** is identical to calendar events: skip list, ClickUp duplicate detection, ticket combos, billable toggles, click-to-edit titles.
+
 ## Development
 
 To update the extension, edit source files and re-run `node build.js`,
@@ -80,6 +107,15 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v2.10.0
+- CSV upload: click **📄 CSV** to import events from a `.csv` file
+  - Columns: `title`, `start`, `end`, `tag` (tag optional, used for ticket ID)
+  - Header row auto-detected; positional fallback if absent
+  - ISO 8601 datetimes; explicit TZ offset honored, bare = local time
+  - Date picker auto-set from first row
+  - Full validation: blocks import on any malformed row with row-level error messages
+  - Feeds into the same render pipeline (skip list, ClickUp dedup, combos, billable, click-to-edit)
 
 ### v2.9.10
 - Ticket search now splits the query into words and requires all of them to
