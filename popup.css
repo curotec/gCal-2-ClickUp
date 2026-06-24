@@ -358,6 +358,19 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #f9e2af;
 }
 
+.ticket-option-loading,
+.ticket-option-empty {
+  color: #6c7086;
+  font-style: italic;
+  cursor: default;
+}
+
+.ticket-option-loading:hover,
+.ticket-option-empty:hover {
+  background: transparent;
+  color: #6c7086;
+}
+
 /* ── Ad-hoc Timer ────────────────────────────────────────────────────────── */
 #timerSection {
   padding: 10px 0 8px;

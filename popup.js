@@ -426,22 +426,110 @@ function buildDropdown(dropdown, items, onSelect) {
   dbg('dropdown opened,', items.length, 'items');
 }
 
+// In-memory cache of search results per query to avoid re-fetching
+const _searchCache = {};
+let _clickupUserId = null;
+
+async function getClickupUserId() {
+  if (_clickupUserId) return _clickupUserId;
+  return new Promise(resolve => {
+    chrome.storage.local.get(['clickupToken'], (s) => {
+      if (!s.clickupToken) { resolve(null); return; }
+      chrome.runtime.sendMessage({ type: 'GET_CLICKUP_USER', clickupToken: s.clickupToken }, (r) => {
+        if (r && r.userId) { _clickupUserId = r.userId; resolve(r.userId); }
+        else resolve(null);
+      });
+    });
+  });
+}
+
+async function searchClickupTasks(query) {
+  const cached = _searchCache[query];
+  if (cached) return cached;
+  const [userId, settings] = await Promise.all([
+    getClickupUserId(),
+    new Promise(resolve => chrome.storage.local.get(['clickupToken', 'teamId'], resolve))
+  ]);
+  if (!userId || !settings.clickupToken || !settings.teamId) return [];
+  return new Promise(resolve => {
+    chrome.runtime.sendMessage({
+      type: 'SEARCH_CLICKUP_TASKS',
+      clickupToken: settings.clickupToken,
+      teamId:       settings.teamId,
+      userId,
+      query
+    }, (r) => {
+      const tasks = (r && r.tasks) || [];
+      _searchCache[query] = tasks;
+      resolve(tasks);
+    });
+  });
+}
+
 function wireCombo(input, dropdown, onSelect) {
+  let searchDebounce = null;
   return getFrequentTickets().then(frequent => {
-    function showDrop(filter) {
-      const items = filter
-        ? frequent.filter(t => t.id.toUpperCase().includes(filter.toUpperCase()) ||
-            t.name.toUpperCase().includes(filter.toUpperCase()))
-        : frequent;
-      if (!items.length) { dropdown.classList.remove('open'); return; }
-      buildDropdown(dropdown, items, (id) => {
+    function showFrequents() {
+      if (!frequent.length) { dropdown.classList.remove('open'); return; }
+      buildDropdown(dropdown, frequent, (id) => {
         input.value = id;
         dropdown.classList.remove('open');
         if (onSelect) onSelect(id);
       });
     }
+
+    function showLoading() {
+      while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
+      const li = document.createElement('li');
+      li.className = 'ticket-option ticket-option-loading';
+      li.textContent = '\u23f3 Searching\u2026';
+      dropdown.appendChild(li);
+      dropdown.classList.add('open');
+    }
+
+    function showNoMatches() {
+      while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
+      const li = document.createElement('li');
+      li.className = 'ticket-option ticket-option-empty';
+      li.textContent = 'No matches';
+      dropdown.appendChild(li);
+      dropdown.classList.add('open');
+    }
+
+    function doSearch(query) {
+      showLoading();
+      searchClickupTasks(query).then(tasks => {
+        // Only render if input still matches the query that was searched
+        if (input.value.trim().toLowerCase() !== query) return;
+        if (!tasks.length) { showNoMatches(); return; }
+        buildDropdown(dropdown, tasks, (id) => {
+          input.value = id;
+          dropdown.classList.remove('open');
+          if (onSelect) onSelect(id);
+        });
+      });
+    }
+
+    function showDrop(rawValue) {
+      const value = (rawValue || '').trim();
+      const upper = value.toUpperCase();
+
+      // Empty input → frequents
+      if (!value) { showFrequents(); return; }
+
+      // Starts with CTK- (any length) → keep showing frequents, no search
+      if (upper.startsWith('CTK-')) { showFrequents(); return; }
+
+      // 1-3 chars → show unfiltered frequents (Option C)
+      if (value.length < 4) { showFrequents(); return; }
+
+      // 4+ chars and not a CTK- pattern → debounced live search
+      if (searchDebounce) clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => doSearch(value.toLowerCase()), 400);
+    }
+
     input.addEventListener('focus', () => { dbg('input focus'); showDrop(input.value); });
-    input.addEventListener('input', () => { dbg('input change:', input.value); showDrop(input.value); if (onSelect) onSelect(input.value); });
+    input.addEventListener('input', () => { dbg('input change:', input.value); showDrop(input.value); });
     input.addEventListener('blur',  () => { dbg('input blur:', input.value); setTimeout(() => dropdown.classList.remove('open'), 150); });
   });
 }
@@ -587,7 +675,7 @@ function renderEvents(events, skipList, clickupEntries) {
     let debounceTimer = null;
 
     function runValidation(id) {
-      if (!id) {
+      if (!id || !/^[A-Z]+-\d+$/.test(id)) {
         validIcon.textContent = '';
         input.style.borderColor = '';
         const isProtected = li.classList.contains('status-warning') || li.classList.contains('status-danger');

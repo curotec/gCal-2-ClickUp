@@ -23,7 +23,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         if (!res.ok) throw new Error(`ClickUp user API error: ${res.status}`);
         const data = await res.json();
-        sendResponse({ timezone: data.user && data.user.timezone });
+        sendResponse({
+          timezone: data.user && data.user.timezone,
+          userId:   data.user && data.user.id
+        });
       } catch (err) {
         sendResponse({ error: err.message });
       }
@@ -109,6 +112,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, taskName: task.name || null });
       } catch (err) {
         sendResponse({ success: false, error: err.message });
+      }
+    })();
+    return true;
+  }
+
+  // ── Live search: tasks assigned to current user, title contains query ───────
+  if (message.type === 'SEARCH_CLICKUP_TASKS') {
+    const { clickupToken, teamId, userId, query } = message;
+    (async () => {
+      try {
+        const q = (query || '').trim().toLowerCase();
+        if (!q || !userId) { sendResponse({ tasks: [] }); return; }
+
+        // Fetch tasks assigned to user. ClickUp paginates at 100/page; one page
+        // is plenty since we filter & cap to 5 results client-side.
+        const url = `https://api.clickup.com/api/v2/team/${teamId}/task` +
+                    `?assignees[]=${encodeURIComponent(userId)}` +
+                    `&include_closed=false&subtasks=true&page=0`;
+        const res = await fetch(url, { headers: { Authorization: clickupToken } });
+        if (!res.ok) throw new Error(`Task search failed: ${res.status}`);
+        const data = await res.json();
+
+        const matches = (data.tasks || [])
+          .filter(t => t.name && t.name.toLowerCase().includes(q))
+          .slice(0, 5)
+          .map(t => ({
+            id:   t.custom_id || t.id,
+            name: t.name
+          }));
+
+        sendResponse({ tasks: matches });
+      } catch (err) {
+        sendResponse({ error: err.message });
       }
     })();
     return true;
@@ -296,4 +332,5 @@ chrome.storage.local.get([TIMER_KEY], (r) => {
     }
     startBadge();
   }
+
 });

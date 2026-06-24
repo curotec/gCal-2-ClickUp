@@ -81,6 +81,13 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.9.9
+- Live ClickUp ticket search in the dropdown:
+  - Empty input or 1-3 chars → frequent tickets (unchanged)
+  - 4+ chars → searches your assigned ClickUp tasks by title (max 5 results, 400ms debounce)
+  - Input starting with CTK- bypasses search
+  - Results cached per session to avoid duplicate API calls
+
 ### v2.9.8
 - Fixed ticket dropdown becoming transparent on validation: opacity is now applied only to title/meta/checkbox elements, never to ancestors of the dropdown, so no stacking context is created where the dropdown lives
 
