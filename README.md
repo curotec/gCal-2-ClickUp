@@ -81,6 +81,12 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.9.10
+- Ticket search now splits the query into words and requires all of them to
+  appear in the task name — `"LCI PO"` matches `"LCI | M2 PO/Packing List..."`
+  (previously required a contiguous substring match and missed this case)
+- Search result cap raised from 5 to 10
+
 ### v2.9.9
 - Live ClickUp ticket search in the dropdown:
   - Empty input or 1-3 chars → frequent tickets (unchanged)

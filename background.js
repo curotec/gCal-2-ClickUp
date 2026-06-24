@@ -134,9 +134,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!res.ok) throw new Error(`Task search failed: ${res.status}`);
         const data = await res.json();
 
+        // Split query into words; ALL must appear in the task name
+        // e.g. "LCI PO" matches "LCI | M2 PO/Packing List Issue..."
+        const words = q.split(/\s+/).filter(Boolean);
         const matches = (data.tasks || [])
-          .filter(t => t.name && t.name.toLowerCase().includes(q))
-          .slice(0, 5)
+          .filter(t => {
+            if (!t.name) return false;
+            const name = t.name.toLowerCase();
+            return words.every(w => name.includes(w));
+          })
+          .slice(0, 10)
           .map(t => ({
             id:   t.custom_id || t.id,
             name: t.name
