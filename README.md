@@ -151,6 +151,14 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.12.8
+- Properly fixed the GCal button not appearing on the first open. Root cause was
+  Google **reusing popover DOM nodes** across opens: a one-shot attribute marker
+  left the node looking "already injected" so the button was skipped (or showed
+  stale event data). Injection now keys on the event's identity (title + time)
+  and verifies our element is actually present, re-injecting when the node is
+  reused for a different event.
+
 ### v2.12.7
 - Fixed the GCal input/button being unclickable (v2.12.5–2.12.6 regression):
   appending the box to the popover root placed it under Google's content

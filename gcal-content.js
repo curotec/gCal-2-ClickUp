@@ -399,7 +399,6 @@
   // ── Injection ───────────────────────────────────────────────────────────────
   function inject(popover, attempt) {
     attempt = attempt || 0;
-    if (popover.getAttribute(MARKER)) return;
 
     const title = scrapeTitle(popover);
     const times = scrapeTimes(popover);
@@ -407,17 +406,26 @@
 
     // The popover container can mount a tick or two before its title/time and
     // action buttons render. If this looks like an event popover but the
-    // content/toolbar isn't ready yet, retry briefly instead of giving up —
-    // this is what caused the "works only on the second open" intermittency.
+    // content/toolbar isn't ready yet, retry briefly instead of giving up.
     if (!times || !title || !editBtn) {
       const looksLikeEventPopover = editBtn || times || title;
       if (looksLikeEventPopover && attempt < 8) {
         setTimeout(() => inject(popover, attempt + 1), 60);
       }
-      return; // not ready (or not an event popover) — don't mark, allow retry
+      return;
     }
 
-    popover.setAttribute(MARKER, '1');
+    // Google reuses popover DOM nodes across opens. A stale attribute marker
+    // would block re-injection when the same node is reused for a different
+    // event. So we key on the event's identity (title+time) AND verify our host
+    // is actually still in the DOM — re-injecting when either differs.
+    const eventKey = title + '|' + times.startISO + '|' + times.endISO;
+    const existingHost = popover.querySelector('.clickup-inject-host');
+    if (existingHost && popover.getAttribute(MARKER) === eventKey) {
+      return; // already injected for this exact event — nothing to do
+    }
+    if (existingHost) existingHost.remove(); // stale host from a previous event
+    popover.setAttribute(MARKER, eventKey);
 
     const ticketId = (title.match(TICKET_REGEX) || [])[1] || null;
     const evt = { title, times, ticketId };
@@ -460,9 +468,9 @@
   function scan() {
     for (const sel of SELECTORS.popoverRoot) {
       document.querySelectorAll(sel).forEach(p => {
-        // Try any dialog/region; inject() decides if it's a real event popover
-        // and whether its content is ready yet.
-        if (!p.getAttribute(MARKER)) inject(p, 0);
+        // inject() decides if this is a real event popover, whether content is
+        // ready, and whether (re-)injection is needed for the current event.
+        inject(p, 0);
       });
     }
   }
