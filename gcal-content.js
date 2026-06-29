@@ -397,17 +397,30 @@
   }
 
   // ── Injection ───────────────────────────────────────────────────────────────
-  function inject(popover) {
+  function inject(popover, attempt) {
+    attempt = attempt || 0;
     if (popover.getAttribute(MARKER)) return;
-    const editBtn = findEditButton(popover);
-    if (!editBtn) return; // not the event detail popover, or DOM changed
-    popover.setAttribute(MARKER, '1');
 
     const title = scrapeTitle(popover);
     const times = scrapeTimes(popover);
+
+    // The popover container can mount a tick or two before its title/time (and
+    // action buttons) render. If this looks like an event popover but the
+    // content isn't ready yet, retry briefly instead of giving up — this is
+    // what caused the "works only on the second open" intermittency.
+    const looksLikeEventPopover = findEditButton(popover) || times || title;
+    if (!times || !title) {
+      if (looksLikeEventPopover && attempt < 8) {
+        setTimeout(() => inject(popover, attempt + 1), 60);
+      }
+      return; // not ready (or not an event popover) — don't mark, allow retry
+    }
+
+    popover.setAttribute(MARKER, '1');
+
     const ticketId = (title.match(TICKET_REGEX) || [])[1] || null;
     const evt = { title, times, ticketId };
-    dbg('injecting for event:', evt);
+    dbg('injecting for event:', evt, 'attempt', attempt);
 
     const host = document.createElement('span');
     host.className = 'clickup-inject-host';
@@ -419,15 +432,11 @@
     applyButtonState(btn, 'clean', '');
 
     // Layout: ticket input on the LEFT, push button to its right (see v2.12.4).
-    // Always show the ticket field. When a ticket ID was detected from the
-    // title it's prefilled so you can verify (or correct) it; otherwise it's
-    // empty for entry via live search.
-    if (times) {
-      const comboHost = document.createElement('div');
-      comboHost.className = 'clickup-combo-host';
-      buildCombo(comboHost, (resolvedId) => { evt.ticketId = resolvedId; }, ticketId);
-      host.appendChild(comboHost);
-    }
+    // Always show the ticket field, prefilled with any detected ticket ID.
+    const comboHost = document.createElement('div');
+    comboHost.className = 'clickup-combo-host';
+    buildCombo(comboHost, (resolvedId) => { evt.ticketId = resolvedId; }, ticketId);
+    host.appendChild(comboHost);
     host.appendChild(btn);
 
     btn.addEventListener('click', (e) => {
@@ -436,22 +445,23 @@
       pushEvent(evt, btn);
     });
 
-    // Place the whole box at the LEFT end of the action row (not next to Edit),
-    // so the left-aligned dropdown opens into the popover, away from the
-    // calendar grid on the right.
-    const row = editBtn.parentElement;
-    row.insertBefore(host, row.firstChild);
+    // Anchor on the popover itself. The host is absolutely positioned (see
+    // gcal-content.css), so the popover just needs to be a positioned parent.
+    if (getComputedStyle(popover).position === 'static') {
+      popover.style.position = 'relative';
+    }
+    popover.appendChild(host);
 
     // State-aware: refine the button once we've checked ClickUp
-    if (times) {
-      detectState(evt).then(({ state, title: t }) => applyButtonState(btn, state, t));
-    }
+    detectState(evt).then(({ state, title: t }) => applyButtonState(btn, state, t));
   }
 
   function scan() {
     for (const sel of SELECTORS.popoverRoot) {
       document.querySelectorAll(sel).forEach(p => {
-        if (findEditButton(p)) inject(p);
+        // Try any dialog/region; inject() decides if it's a real event popover
+        // and whether its content is ready yet.
+        if (!p.getAttribute(MARKER)) inject(p, 0);
       });
     }
   }

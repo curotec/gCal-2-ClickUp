@@ -151,6 +151,16 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.12.5
+- Fixed the GCal button intermittently not appearing until the second time an
+  event was opened: Google sometimes mounts the popover container before its
+  title/time/buttons render. Injection no longer depends on the Edit button
+  being present and now retries briefly (up to ~0.5s) while the popover content
+  finishes rendering.
+- The injected box is now absolutely positioned within the popover
+  (`left: 30px; top: 15px`), anchored to the popover itself rather than spliced
+  into Google's button row — more robust against toolbar layout changes.
+
 ### v2.12.4
 - Reworked the GCal popover layout to stop the dropdown overflowing into the
   calendar grid: the whole ClickUp box now sits at the **left** end of the
