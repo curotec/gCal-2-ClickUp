@@ -111,10 +111,11 @@ the extension popup.
    - **✓ Logged** (green) — the same ticket is already logged for that time
    - **⚠ Conflict** (red) — a *different* ticket overlaps that time
    In the green/red states, clicking asks for confirmation before pushing anyway.
-4. If no ticket ID is detected in the event title, an inline field appears with
-   **live ClickUp search** (same as the popup: type 4+ characters to search your
-   assigned tasks, or pick from your frequent/favorite tickets). Enter a ticket,
-   then click **→ ClickUp**.
+4. A ticket-ID field is always shown. If a ticket ID is detected in the event
+   title it's **prefilled** so you can confirm it's correct; otherwise the field
+   is empty. Either way it offers **live ClickUp search** (same as the popup: type
+   4+ characters to search your assigned tasks, or pick from your frequent/favorite
+   tickets). Then click the ClickUp button to push.
 
 Pushed entries are marked billable by default and are recorded in your frequent-ticket
 history, just like popup imports.
@@ -148,6 +149,11 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v2.12.2
+- GCal popover now always shows the ticket-ID field, even when a ticket is
+  detected from the title — it's prefilled with the detected ID so you can
+  verify it's the right ticket (and edit it via live search if not)
 
 ### v2.12.1
 - GCal push button now shows the ClickUp icon instead of the "→ ClickUp" text

@@ -262,7 +262,7 @@
   }
 
   // ── Inline ticket combo (full live search, mirrors popup behavior) ─────────
-  function buildCombo(container, onResolve) {
+  function buildCombo(container, onResolve, prefill) {
     const wrap = document.createElement('div');
     wrap.className = 'clickup-combo';
     const input = document.createElement('input');
@@ -270,6 +270,7 @@
     input.className = 'clickup-ticket-input';
     input.placeholder = 'Ticket ID (e.g. CTK-1234)';
     input.autocomplete = 'off';
+    if (prefill) input.value = prefill;
     const dropdown = document.createElement('ul');
     dropdown.className = 'clickup-dropdown';
     wrap.appendChild(input);
@@ -400,11 +401,13 @@
     applyButtonState(btn, 'clean', '');
     host.appendChild(btn);
 
-    // No ticket detected → inline combo with live search
-    if (!ticketId && times) {
+    // Always show the ticket field. When a ticket ID was detected from the
+    // title it's prefilled so you can verify (or correct) it; otherwise it's
+    // empty for entry via live search.
+    if (times) {
       const comboHost = document.createElement('div');
       comboHost.className = 'clickup-combo-host';
-      buildCombo(comboHost, (resolvedId) => { evt.ticketId = resolvedId; });
+      buildCombo(comboHost, (resolvedId) => { evt.ticketId = resolvedId; }, ticketId);
       host.appendChild(comboHost);
     }
 
