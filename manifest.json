@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GCal 2 ClickUp Time Importer",
-  "version": "2.11.0",
+  "version": "2.12.1",
   "description": "Import Google Calendar events as time entries into ClickUp timesheets.",
   "permissions": [
     "identity",
@@ -16,7 +16,8 @@
     "https://*.clickup.com/*",
     "https://curotec.clickup.com/*",
     "https://api.clickup.com/*",
-    "https://raw.githubusercontent.com/*"
+    "https://raw.githubusercontent.com/*",
+    "https://calendar.google.com/*"
   ],
   "oauth2": {
     "client_id": "{{GOOGLE_CLIENT_ID}}",
@@ -35,6 +36,18 @@
       ],
       "js": [
         "content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://calendar.google.com/*"
+      ],
+      "js": [
+        "gcal-content.js"
+      ],
+      "css": [
+        "gcal-content.css"
       ],
       "run_at": "document_idle"
     }

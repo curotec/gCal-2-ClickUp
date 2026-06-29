@@ -96,7 +96,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 #events {
   list-style: none;
-  max-height: 320px;
+  max-height: 386px;
   overflow-y: auto;
   overflow-x: visible;
   border: 1px solid #313244;

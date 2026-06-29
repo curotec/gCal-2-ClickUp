@@ -99,6 +99,47 @@ Feature work,2026-06-24T10:00:00,2026-06-24T12:00:00,CTK-5678
 - **Validation** blocks the entire import if any row is malformed — the error identifies the row number and what's wrong.
 - **Render pipeline** is identical to calendar events: skip list, ClickUp duplicate detection, ticket combos, billable toggles, click-to-edit titles.
 
+### Push a single event from Google Calendar
+
+You can push one event straight from the Google Calendar web UI without opening
+the extension popup.
+
+1. In `calendar.google.com`, click an event to open its detail popover
+2. A **→ ClickUp** button appears to the left of the **Edit event** button
+3. The button is **state-aware**, reflecting existing ClickUp entries for that timeframe:
+   - **→ ClickUp** (blue) — nothing logged yet; clicking pushes immediately
+   - **✓ Logged** (green) — the same ticket is already logged for that time
+   - **⚠ Conflict** (red) — a *different* ticket overlaps that time
+   In the green/red states, clicking asks for confirmation before pushing anyway.
+4. If no ticket ID is detected in the event title, an inline field appears with
+   **live ClickUp search** (same as the popup: type 4+ characters to search your
+   assigned tasks, or pick from your frequent/favorite tickets). Enter a ticket,
+   then click **→ ClickUp**.
+
+Pushed entries are marked billable by default and are recorded in your frequent-ticket
+history, just like popup imports.
+
+> **Note:** Google Calendar's page markup is not a stable, documented API. If a
+> Google UI update ever hides the button or misreads an event's time, it can be
+> re-tuned in one place — see the `SELECTORS` block and `scrape*` helpers at the
+> top of `gcal-content.js`.
+
+## File reference
+
+| File | Purpose |
+|---|---|
+| `manifest.json` | Extension manifest (MV3). Contains `{{GOOGLE_CLIENT_ID}}` placeholder; permissions; registers the popup, options page, and both content scripts |
+| `background.js` | Service worker. Handles Google OAuth and all ClickUp API calls (user lookup, fetch entries, task search, import time entry) plus the ad-hoc timer |
+| `popup.html` / `popup.js` / `popup.css` | The toolbar popup: date picker, event list, CSV upload, ticket combos, billable toggles, import |
+| `options.html` / `options.js` / `options.css` | Settings page: ClickUp token, Team ID, skip list, debug mode, ticket-history reset, Google sign-out |
+| `content.js` | Minimal content script on ClickUp pages (liveness ping) |
+| `gcal-content.js` | Content script on `calendar.google.com`: injects the state-aware **→ ClickUp** push button into the event popover |
+| `gcal-content.css` | Styling for the injected button + inline ticket combo, matched to Google's native light popover |
+| `build.js` | Injects the client ID from `config.json` into the manifest, copies all files to `dist/`, optionally zips |
+| `config.json.example` | Placeholder config shape (safe to commit) |
+| `.gitignore` | Ignores `config.json` and `dist/` |
+| `icons/` | Extension icons (16/32/48/128px) |
+
 ## Development
 
 To update the extension, edit source files and re-run `node build.js`,
@@ -107,6 +148,29 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v2.12.1
+- GCal push button now shows the ClickUp icon instead of the "→ ClickUp" text
+  label; the Logged/Conflict states are indicated by a small colored ✓/⚠ glyph
+  beside the icon
+  - Icon is inlined as a base64 data URL, so the content script needs no
+    `web_accessible_resources` entry
+- Narrowed the inline ticket-ID field in the GCal popover (160px → 70px)
+
+### v2.12.0
+- **Push from Google Calendar:** added a state-aware **→ ClickUp** button to the
+  event detail popover on `calendar.google.com`, left of **Edit event**
+  - States reflect existing ClickUp entries for that timeframe: **→ ClickUp** (clean),
+    **✓ Logged** (same ticket already logged), **⚠ Conflict** (different ticket overlaps)
+  - In the Logged/Conflict states, pushing asks for confirmation first
+  - If the event title has no ticket ID, an inline field offers full live ClickUp
+    search (same behavior as the popup)
+  - Reuses existing background handlers (`IMPORT_TIME_ENTRY`, `GET_CLICKUP_ENTRIES`,
+    `SEARCH_CLICKUP_TASKS`); button is styled to match Google's native light popover
+  - New files: `gcal-content.js`, `gcal-content.css`; new `calendar.google.com`
+    host permission + content-script registration
+- Event list (`#events`) max-height raised 320px → 386px to use the taller popup
+- Added a **File reference** table to this README
 
 ### v2.11.0
 - Paste fix: when the ticket field already holds a complete ticket ID (e.g. a pasted `CTK-1234`), the suggestion dropdown stays closed so it no longer covers the value

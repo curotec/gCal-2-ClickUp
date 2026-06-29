@@ -6,11 +6,7 @@
 .clickup-inject-host {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  position: absolute;
-  left: 30px;
-  top: 15px;
-  z-index: 1000;
+  position: relative;
 }
 
 .clickup-push-btn {
@@ -21,7 +17,7 @@
   font-size: 14px;
   line-height: 1;
   padding: 6px 8px;
-  margin-right: 0;
+  margin-right: 4px;
   border: none;
   background: transparent;
   color: #444746;
@@ -49,10 +45,6 @@
   background: rgba(60, 64, 67, 0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-  .clickup-push-btn:hover { background: rgba(232, 234, 237, 0.12); }
-}
-
 .clickup-push-btn:disabled {
   opacity: 0.6;
   cursor: default;
@@ -62,33 +54,9 @@
 .clickup-push-btn.clickup-state-logged   .clickup-btn-glyph { color: #188038; }  /* Google green */
 .clickup-push-btn.clickup-state-conflict .clickup-btn-glyph { color: #d93025; }  /* Google red */
 
-/* Inline ticket combo. Colors come from custom properties so the combo
-   follows the browser/OS theme (light by default, dark via prefers-color-scheme). */
+/* Inline ticket combo (shown when no ticket ID is detected) */
 .clickup-combo-host {
-  margin-right: 0;
-  --cu-field-bg:     #fff;
-  --cu-field-text:   #202124;
-  --cu-border:       #dadce0;
-  --cu-accent:       #1a73e8;
-  --cu-menu-bg:      #fff;
-  --cu-option-text:  #202124;
-  --cu-option-hover: #f1f3f4;
-  --cu-muted:        #5f6368;
-  --cu-fav:          #b8860b;
-}
-
-@media (prefers-color-scheme: dark) {
-  .clickup-combo-host {
-    --cu-field-bg:     #2d2e30;
-    --cu-field-text:   #e8eaed;
-    --cu-border:       #5f6368;
-    --cu-accent:       #8ab4f8;
-    --cu-menu-bg:      #2d2e30;
-    --cu-option-text:  #e8eaed;
-    --cu-option-hover: #3c4043;
-    --cu-muted:        #9aa0a6;
-    --cu-fav:          #f9e2af;
-  }
+  margin-right: 4px;
 }
 
 .clickup-combo {
@@ -100,16 +68,16 @@
   font-family: Roboto, Arial, sans-serif;
   font-size: 13px;
   padding: 6px 8px;
-  border: 1px solid var(--cu-border);
+  border: 1px solid #dadce0;
   border-radius: 6px;
   width: 70px;
-  color: var(--cu-field-text);
-  background: var(--cu-field-bg);
+  color: #202124;
+  background: #fff;
 }
 
 .clickup-ticket-input:focus {
   outline: none;
-  border-color: var(--cu-accent);
+  border-color: #1a73e8;
 }
 
 .clickup-dropdown {
@@ -121,8 +89,8 @@
   margin: 2px 0 0;
   padding: 4px 0;
   list-style: none;
-  background: var(--cu-menu-bg);
-  border: 1px solid var(--cu-border);
+  background: #fff;
+  border: 1px solid #dadce0;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   min-width: 280px;
@@ -138,19 +106,19 @@
   padding: 6px 12px;
   font-size: 13px;
   font-family: Roboto, Arial, sans-serif;
-  color: var(--cu-option-text);
+  color: #202124;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.clickup-option:hover { background: var(--cu-option-hover); }
+.clickup-option:hover { background: #f1f3f4; }
 
-.clickup-option-fav { color: var(--cu-fav); }  /* amber, mirrors popup favorites */
+.clickup-option-fav { color: #b8860b; }  /* amber, mirrors popup favorites */
 
 .clickup-option-info {
-  color: var(--cu-muted);
+  color: #5f6368;
   font-style: italic;
   cursor: default;
 }

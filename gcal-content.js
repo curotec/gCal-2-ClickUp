@@ -61,7 +61,7 @@
   // ── Frequent tickets (same 30-day rolling window as the popup) ─────────────
   async function getFrequentTickets() {
     return new Promise(resolve => {
-      chrome.storage.local.get(['ticketFrequency', 'ticketNames', 'ticketFavorites', 'clickupToken', 'teamId'], async (r) => {
+      chrome.storage.local.get(['ticketFrequency', 'ticketNames', 'ticketFavorites'], (r) => {
         const freq = r.ticketFrequency || {};
         const cutoff = Date.now() - THIRTY_DAYS_MS;
         const cleaned = {};
@@ -69,29 +69,11 @@
           const recent = (ts || []).filter(t => t > cutoff);
           if (recent.length) cleaned[id] = recent;
         }
-        const names = { ...(r.ticketNames || {}) };
+        const names = r.ticketNames || {};
         const favIds = r.ticketFavorites || [];
         const sorted = Object.entries(cleaned)
           .sort((a, b) => b[1].length - a[1].length)
           .map(([id]) => id);
-
-        // Resolve names missing from storage (e.g. frequents built before names
-        // were cached), via the background — content scripts can't call the API.
-        const wanted = [...favIds.slice(0, 3), ...sorted].filter((id, i, a) => a.indexOf(id) === i);
-        const missing = wanted.filter(id => !names[id]);
-        if (missing.length && r.clickupToken && r.teamId) {
-          const resp = await sendBg({
-            type: 'GET_TASK_NAMES',
-            clickupToken: r.clickupToken,
-            teamId: r.teamId,
-            ids: missing
-          });
-          if (resp && resp.names) {
-            Object.assign(names, resp.names);
-            chrome.storage.local.set({ ticketNames: names });
-          }
-        }
-
         const favTickets  = favIds.slice(0, 3)
           .map(id => ({ id, name: names[id] || '', favorite: true }));
         const freqTickets = sorted.filter(id => !favIds.includes(id))
@@ -280,7 +262,7 @@
   }
 
   // ── Inline ticket combo (full live search, mirrors popup behavior) ─────────
-  function buildCombo(container, onResolve, prefill) {
+  function buildCombo(container, onResolve) {
     const wrap = document.createElement('div');
     wrap.className = 'clickup-combo';
     const input = document.createElement('input');
@@ -288,7 +270,6 @@
     input.className = 'clickup-ticket-input';
     input.placeholder = 'Ticket ID (e.g. CTK-1234)';
     input.autocomplete = 'off';
-    if (prefill) input.value = prefill;
     const dropdown = document.createElement('ul');
     dropdown.className = 'clickup-dropdown';
     wrap.appendChild(input);
@@ -397,39 +378,17 @@
   }
 
   // ── Injection ───────────────────────────────────────────────────────────────
-  function inject(popover, attempt) {
-    attempt = attempt || 0;
+  function inject(popover) {
+    if (popover.getAttribute(MARKER)) return;
+    const editBtn = findEditButton(popover);
+    if (!editBtn) return; // not the event detail popover, or DOM changed
+    popover.setAttribute(MARKER, '1');
 
     const title = scrapeTitle(popover);
     const times = scrapeTimes(popover);
-    const editBtn = findEditButton(popover);
-
-    // The popover container can mount a tick or two before its title/time and
-    // action buttons render. If this looks like an event popover but the
-    // content/toolbar isn't ready yet, retry briefly instead of giving up.
-    if (!times || !title || !editBtn) {
-      const looksLikeEventPopover = editBtn || times || title;
-      if (looksLikeEventPopover && attempt < 8) {
-        setTimeout(() => inject(popover, attempt + 1), 60);
-      }
-      return;
-    }
-
-    // Google reuses popover DOM nodes across opens. A stale attribute marker
-    // would block re-injection when the same node is reused for a different
-    // event. So we key on the event's identity (title+time) AND verify our host
-    // is actually still in the DOM — re-injecting when either differs.
-    const eventKey = title + '|' + times.startISO + '|' + times.endISO;
-    const existingHost = popover.querySelector('.clickup-inject-host');
-    if (existingHost && popover.getAttribute(MARKER) === eventKey) {
-      return; // already injected for this exact event — nothing to do
-    }
-    if (existingHost) existingHost.remove(); // stale host from a previous event
-    popover.setAttribute(MARKER, eventKey);
-
     const ticketId = (title.match(TICKET_REGEX) || [])[1] || null;
     const evt = { title, times, ticketId };
-    dbg('injecting for event:', evt, 'attempt', attempt);
+    dbg('injecting for event:', evt);
 
     const host = document.createElement('span');
     host.className = 'clickup-inject-host';
@@ -439,14 +398,15 @@
     btn.className = 'clickup-push-btn';
     btn.type = 'button';
     applyButtonState(btn, 'clean', '');
-
-    // Layout: ticket input on the LEFT, push button to its right (see v2.12.4).
-    // Always show the ticket field, prefilled with any detected ticket ID.
-    const comboHost = document.createElement('div');
-    comboHost.className = 'clickup-combo-host';
-    buildCombo(comboHost, (resolvedId) => { evt.ticketId = resolvedId; }, ticketId);
-    host.appendChild(comboHost);
     host.appendChild(btn);
+
+    // No ticket detected → inline combo with live search
+    if (!ticketId && times) {
+      const comboHost = document.createElement('div');
+      comboHost.className = 'clickup-combo-host';
+      buildCombo(comboHost, (resolvedId) => { evt.ticketId = resolvedId; });
+      host.appendChild(comboHost);
+    }
 
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -454,23 +414,18 @@
       pushEvent(evt, btn);
     });
 
-    // Insert into the toolbar's button row (the v2.12.4 placement that was
-    // clickable). The host is absolutely positioned via CSS, so its visual
-    // location is independent of where in the row it's inserted — but living
-    // among the interactive buttons keeps it in a clickable stacking context.
-    const row = editBtn.parentElement;
-    row.insertBefore(host, row.firstChild);
+    editBtn.parentElement.insertBefore(host, editBtn);
 
     // State-aware: refine the button once we've checked ClickUp
-    detectState(evt).then(({ state, title: t }) => applyButtonState(btn, state, t));
+    if (times) {
+      detectState(evt).then(({ state, title: t }) => applyButtonState(btn, state, t));
+    }
   }
 
   function scan() {
     for (const sel of SELECTORS.popoverRoot) {
       document.querySelectorAll(sel).forEach(p => {
-        // inject() decides if this is a real event popover, whether content is
-        // ready, and whether (re-)injection is needed for the current event.
-        inject(p, 0);
+        if (findEditButton(p)) inject(p);
       });
     }
   }

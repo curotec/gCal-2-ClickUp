@@ -50,6 +50,8 @@ if (!fs.existsSync(DIST)) fs.mkdirSync(DIST);
 const FILES = [
   'background.js',
   'content.js',
+  'gcal-content.js',
+  'gcal-content.css',
   'options.html',
   'options.js',
   'options.css',
