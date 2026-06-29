@@ -46,7 +46,8 @@ node build.js
 
 This injects your client ID into `manifest.json` and copies all files to `dist/`.
 If you have `archiver` installed (`npm install archiver`), it also produces
-`dist/gcal-clickup-importer.zip`.
+`dist/gcal-clickup-importer-vX_X_X.zip` (named from the manifest version, with
+the `icons/` folder included).
 
 ### 3. Install in Chrome
 
@@ -139,7 +140,7 @@ history, just like popup imports.
 | `gcal-content.css` | Styling for the injected button + inline ticket combo, matched to Google's native light popover |
 | `build.js` | Injects the client ID from `config.json` into the manifest, copies all files to `dist/`, optionally zips |
 | `config.json.example` | Placeholder config shape (safe to commit) |
-| `.gitignore` | Ignores `config.json` and `dist/` |
+| `.gitignore` | Ignores `config.json`, `dist/`, and `Temp/` |
 | `icons/` | Extension icons (16/32/48/128px) |
 
 ## Development
@@ -150,6 +151,43 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v3.0.0
+Milestone release: consolidates the v2.11–v2.12 work and a full code-review pass.
+
+**Major fix**
+- **Timer reliability (MV3):** the 1-hour warning, auto-stop, badge refresh, and
+  pause reminder were driven by `setTimeout`/`setInterval` inside the service
+  worker, which Chrome kills after ~30s idle — so they usually never fired.
+  Migrated the whole timer subsystem to `chrome.alarms`, which persists across
+  worker restarts and wakes the worker when due. (New `alarms` permission.)
+
+**Google Calendar push button** (introduced across v2.12.x)
+- State-aware ClickUp icon button injected into the event popover; pushes a
+  single event's time to ClickUp. ✓/⚠ glyphs flag already-logged / conflicting
+  entries; push asks for confirmation in those states.
+- Always-shown ticket field, prefilled with any detected ID, with live ClickUp
+  search; dropdown shows ticket names; follows the browser light/dark theme.
+- Robust injection: survives Google's popover DOM-node reuse and late content
+  render (keyed on event identity; retries briefly).
+- Icon inlined as a base64 data URL (no `web_accessible_resources` needed).
+
+**Popup** (v2.11.0)
+- Paste of a complete ticket ID no longer pops the dropdown over the value.
+- Taller popup (min-height 600px) and event list; 340px dropdown with compact rows.
+- Dropdown favorites use color only (no leading ★ glyph).
+
+**Housekeeping / review fixes**
+- Removed unused `scripting` permission; deduped `host_permissions` and the
+  ClickUp content-script match (`*.clickup.com` already covers `curotec`).
+- `build.js`: zip is now named from the manifest version
+  (`gcal-clickup-importer-vX_X_X.zip`) and **includes the `icons/` folder**
+  (previously omitted from the zip).
+- Removed dead/duplicate CSS (`.ticket-input-row` in popup.css; the superseded
+  pre-drag-and-drop `.tag-checklist`/`.tag-check-item` block in options.css).
+- `content.js`: removed a redundant nested `querySelector` in
+  `GET_TICKET_FROM_DOM`.
+- `.gitignore` now also ignores `Temp/`.
 
 ### v2.12.8
 - Properly fixed the GCal button not appearing on the first open. Root cause was

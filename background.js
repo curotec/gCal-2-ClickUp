@@ -182,69 +182,113 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 });
 
-// ── Ad-hoc Timer: 1-hour warning + auto-stop ──────────────────────────────────
+// ── Ad-hoc Timer: 1-hour warning + auto-stop (chrome.alarms based) ────────────
+// MV3 service workers are killed after ~30s idle, so setTimeout/setInterval are
+// unreliable for long delays. chrome.alarms persists across worker restarts and
+// wakes the worker when it fires, so the warning/auto-stop actually trigger.
 const TIMER_KEY = 'adHocTimer';
-let warningTimeout = null;
-let autoStopTimeout = null;
+const ALARM_WARNING   = 'timerWarning';
+const ALARM_AUTOSTOP  = 'timerAutoStop';
+const ALARM_BADGE     = 'timerBadgeTick';
+const ALARM_PAUSE     = 'timerPauseReminder';
+const ONE_HOUR_MS = 60 * 60 * 1000;
+const ONE_MIN_MS  = 60 * 1000;
 
-function clearTimerTimeouts() {
-  if (warningTimeout) { clearTimeout(warningTimeout); warningTimeout = null; }
-  if (autoStopTimeout) { clearTimeout(autoStopTimeout); autoStopTimeout = null; }
+function clearTimerAlarms() {
+  chrome.alarms.clear(ALARM_WARNING);
+  chrome.alarms.clear(ALARM_AUTOSTOP);
 }
 
+// startTs is the (possibly synthetic) moment "this hour" began counting.
 function scheduleTimerWarning(startTs) {
-  clearTimerTimeouts();
-  const elapsed = Date.now() - startTs;
-  const oneHour = 60 * 60 * 1000;
-  const oneMin = 60 * 1000;
-  const timeToWarning = Math.max(0, oneHour - elapsed);
-  const timeToAutoStop = Math.max(0, oneHour + oneMin - elapsed);
-
-  warningTimeout = setTimeout(() => {
-    chrome.notifications.create('timerWarning', {
-      type: 'basic',
-      iconUrl: 'icons/icon48.png',
-      title: 'GCal → ClickUp Timer',
-      message: 'Timer has been running for 1 hour — still tracking?',
-      buttons: [{ title: 'Continue' }, { title: 'Stop' }],
-      requireInteraction: true
-    });
-  }, timeToWarning);
-
-  autoStopTimeout = setTimeout(() => {
-    chrome.storage.local.get([TIMER_KEY], (r) => {
-      const t = r[TIMER_KEY];
-      if (t && t.running) {
-        chrome.storage.local.remove([TIMER_KEY]);
-        chrome.notifications.clear('timerWarning');
-        stopBadge();
-        chrome.runtime.sendMessage({ type: 'TIMER_AUTO_STOP' }).catch(() => {});
-        chrome.notifications.create('timerStopped', {
-          type: 'basic',
-          iconUrl: 'icons/icon48.png',
-          title: 'GCal → ClickUp Timer',
-          message: 'Timer auto-stopped after 1 hour. Open the extension to log your time.'
-        });
-      }
-    });
-  }, timeToAutoStop);
+  clearTimerAlarms();
+  const warnAt = startTs + ONE_HOUR_MS;
+  const stopAt = startTs + ONE_HOUR_MS + ONE_MIN_MS;
+  // chrome.alarms uses absolute time via `when` (ms epoch). Clamp to the near
+  // future so an already-elapsed target still fires promptly.
+  chrome.alarms.create(ALARM_WARNING,  { when: Math.max(Date.now() + 1000, warnAt) });
+  chrome.alarms.create(ALARM_AUTOSTOP, { when: Math.max(Date.now() + 2000, stopAt) });
 }
+
+function fireTimerWarning() {
+  chrome.notifications.create(ALARM_WARNING, {
+    type: 'basic',
+    iconUrl: 'icons/icon48.png',
+    title: 'GCal → ClickUp Timer',
+    message: 'Timer has been running for 1 hour — still tracking?',
+    buttons: [{ title: 'Continue' }, { title: 'Stop' }],
+    requireInteraction: true
+  });
+}
+
+function fireTimerAutoStop() {
+  chrome.storage.local.get([TIMER_KEY], (r) => {
+    const t = r[TIMER_KEY];
+    if (t && t.running) {
+      const elapsed = t.paused
+        ? (t.pausedElapsed || 0)
+        : (t.pausedElapsed || 0) + (Date.now() - t.startTs);
+      const rounded = Math.ceil(Math.ceil(elapsed / 60000) / 5) * 5 * 60000;
+      chrome.storage.local.set({ adHocTimerConfirm: {
+        ticketId: t.ticketId || '',
+        durationMs: rounded,
+        billable: true,
+        rawMs: elapsed,
+        description: ''
+      }});
+      chrome.storage.local.remove([TIMER_KEY]);
+      chrome.notifications.clear(ALARM_WARNING);
+      stopBadge();
+      chrome.runtime.sendMessage({ type: 'TIMER_AUTO_STOP' }).catch(() => {});
+      chrome.notifications.create('timerStopped', {
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'GCal → ClickUp Timer',
+        message: 'Timer auto-stopped after 1 hour. Open the extension to log your time.'
+      });
+    }
+  });
+}
+
+function firePauseReminder() {
+  chrome.storage.local.get([TIMER_KEY], (r) => {
+    if (r[TIMER_KEY] && r[TIMER_KEY].paused) {
+      chrome.notifications.create('timerPaused', {
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'GCal → ClickUp Timer',
+        message: 'Your timer is still paused — don’t forget to resume or stop!'
+      });
+    } else {
+      chrome.alarms.clear(ALARM_PAUSE);
+    }
+  });
+}
+
+// Single alarm dispatcher
+chrome.alarms.onAlarm.addListener((alarm) => {
+  switch (alarm.name) {
+    case ALARM_WARNING:  fireTimerWarning();  break;
+    case ALARM_AUTOSTOP: fireTimerAutoStop(); break;
+    case ALARM_BADGE:    updateBadge();       break;
+    case ALARM_PAUSE:    firePauseReminder(); break;
+  }
+});
 
 // Handle notification button clicks
 chrome.notifications.onButtonClicked.addListener((notifId, btnIdx) => {
-  if (notifId === 'timerWarning') {
-    chrome.notifications.clear('timerWarning');
+  if (notifId === ALARM_WARNING) {
+    chrome.notifications.clear(ALARM_WARNING);
     if (btnIdx === 0) {
-      // Continue — reschedule warning for next hour
+      // Continue — reschedule warning for the next hour from now
       chrome.storage.local.get([TIMER_KEY], (r) => {
         if (r[TIMER_KEY] && r[TIMER_KEY].running) {
-          clearTimerTimeouts();
-          scheduleTimerWarning(r[TIMER_KEY].startTs - 60 * 60 * 1000); // next hour from now
+          scheduleTimerWarning(Date.now());
         }
       });
     } else {
       // Stop — save confirm state before removing timer
-      clearTimerTimeouts();
+      clearTimerAlarms();
       chrome.storage.local.get([TIMER_KEY], (r) => {
         const t = r[TIMER_KEY];
         if (t && t.running) {
@@ -269,8 +313,6 @@ chrome.notifications.onButtonClicked.addListener((notifId, btnIdx) => {
 });
 
 // ── Badge display ────────────────────────────────────────────────────────────
-let badgeInterval = null;
-
 function updateBadge() {
   chrome.storage.local.get([TIMER_KEY], (r) => {
     const t = r[TIMER_KEY];
@@ -292,38 +334,23 @@ function updateBadge() {
 
 function startBadge() {
   updateBadge();
-  if (badgeInterval) clearInterval(badgeInterval);
-  badgeInterval = setInterval(updateBadge, 30000); // update every 30s
+  // alarms minimum period is 1 minute; the badge only shows m/h granularity so
+  // a 1-minute refresh is plenty and survives service-worker restarts.
+  chrome.alarms.create(ALARM_BADGE, { periodInMinutes: 1 });
 }
 
 function stopBadge() {
-  if (badgeInterval) { clearInterval(badgeInterval); badgeInterval = null; }
+  chrome.alarms.clear(ALARM_BADGE);
   chrome.action.setBadgeText({ text: '' });
 }
 
-// ── Pause reminder interval
-let pauseReminderInterval = null;
-
-function clearPauseReminder() {
-  if (pauseReminderInterval) { clearInterval(pauseReminderInterval); pauseReminderInterval = null; }
+// ── Pause reminder ────────────────────────────────────────────────────────────
+function startPauseReminder() {
+  chrome.alarms.create(ALARM_PAUSE, { periodInMinutes: 5 });
 }
 
-function startPauseReminder() {
-  clearPauseReminder();
-  pauseReminderInterval = setInterval(() => {
-    chrome.storage.local.get([TIMER_KEY], (r) => {
-      if (r[TIMER_KEY] && r[TIMER_KEY].paused) {
-        chrome.notifications.create('timerPaused', {
-          type: 'basic',
-          iconUrl: 'icons/icon48.png',
-          title: 'GCal → ClickUp Timer',
-          message: 'Your timer is still paused — don’t forget to resume or stop!'
-        });
-      } else {
-        clearPauseReminder();
-      }
-    });
-  }, 5 * 60 * 1000);
+function clearPauseReminder() {
+  chrome.alarms.clear(ALARM_PAUSE);
 }
 
 // Listen for timer messages from popup
@@ -334,7 +361,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     startBadge();
   }
   if (message.type === 'TIMER_PAUSE') {
-    clearTimerTimeouts();
+    clearTimerAlarms();
     startPauseReminder();
     updateBadge(); // turn badge orange immediately
   }
@@ -345,22 +372,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     startBadge(); // turn badge green
   }
   if (message.type === 'TIMER_STOP') {
-    clearTimerTimeouts();
+    clearTimerAlarms();
     clearPauseReminder();
     stopBadge();
   }
 });
 
-// On service worker startup, restore timer state and badge
+// On service worker startup, restore timer state, alarms, and badge
 chrome.storage.local.get([TIMER_KEY], (r) => {
   const t = r[TIMER_KEY];
   if (t && t.running) {
     if (t.paused) {
       startPauseReminder();
     } else {
-      scheduleTimerWarning(t.startTs);
+      // Reschedule from the original start so the 1-hour mark stays accurate.
+      scheduleTimerWarning(t.startTs - (t.pausedElapsed || 0));
     }
     startBadge();
   }
-
 });

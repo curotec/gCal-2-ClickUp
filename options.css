@@ -192,35 +192,6 @@ button.primary:hover { background: #6d28d9; }
   margin-bottom: 12px;
 }
 
-.tag-checklist {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  max-height: 200px;
-  overflow-y: auto;
-  padding: 4px 0;
-}
-
-.tag-check-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #1e1e2e;
-  border-radius: 6px;
-  padding: 5px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.tag-check-item:hover { background: #2a2a3e; }
-
-.tag-check-item input[type="checkbox"] {
-  accent-color: #7c3aed;
-  cursor: pointer;
-}
-
 /* ── Tag checklist drag-and-drop ─────────────────────────────────────────── */
 .tag-checklist {
   display: flex;
@@ -247,6 +218,12 @@ button.primary:hover { background: #6d28d9; }
 
 .tag-check-item.drag-over { border-color: #7c3aed; }
 .tag-check-item.dragging  { opacity: 0.4; }
+.tag-check-item:hover { background: #2a2a3e; }
+
+.tag-check-item input[type="checkbox"] {
+  accent-color: #7c3aed;
+  cursor: pointer;
+}
 
 .drag-handle {
   cursor: grab;

@@ -584,12 +584,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   margin-left: 4px;
 }
 
-.ticket-input-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .event-item.ticket-invalid .event-title,
 .event-item.ticket-invalid .event-meta,
 .event-item.ticket-invalid .ticket-meta-row,

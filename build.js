@@ -2,7 +2,7 @@
 /**
  * build.js
  * Reads config.json and injects values into manifest.json,
- * then zips the extension into dist/gcal-clickup-importer.zip
+ * then zips the extension into dist/gcal-clickup-importer-vX_X_X.zip
  *
  * Usage:
  *   node build.js
@@ -87,11 +87,14 @@ console.log('  client_id:', config.google_client_id);
 // ── 4. Optionally zip dist/ ───────────────────────────────────────────────────
 try {
   const archiver = require('archiver');
-  const output   = fs.createWriteStream(path.join(ROOT, 'dist', 'gcal-clickup-importer.zip'));
+  // Name the zip from the (injected) manifest version: gcal-clickup-importer-vX_X_X.zip
+  const zipName  = 'gcal-clickup-importer-v' + parsed.version.replace(/\./g, '_') + '.zip';
+  const zipPath  = path.join(DIST, zipName);
+  const output   = fs.createWriteStream(zipPath);
   const archive  = archiver('zip', { zlib: { level: 9 } });
 
   output.on('close', () => {
-    console.log('✓ Zipped:', archive.pointer(), 'bytes →', 'dist/gcal-clickup-importer.zip');
+    console.log('✓ Zipped:', archive.pointer(), 'bytes →', 'dist/' + zipName);
   });
 
   archive.pipe(output);
@@ -100,7 +103,15 @@ try {
     if (fs.existsSync(p)) archive.file(p, { name: f });
   });
   archive.file(OUT_MANIFEST, { name: 'manifest.json' });
+  // Include icons
+  if (fs.existsSync(ICONS_DST)) {
+    archive.directory(ICONS_DST, 'icons');
+  }
   archive.finalize();
 } catch (e) {
-  console.log('  (Skipping zip — run "npm install archiver" to enable auto-zip)');
+  if (e && e.code === 'MODULE_NOT_FOUND') {
+    console.log('  (Skipping zip — run "npm install archiver" to enable auto-zip)');
+  } else {
+    console.log('  (Zip step failed:', e && e.message, '— dist/ is still valid for "Load unpacked")');
+  }
 }
