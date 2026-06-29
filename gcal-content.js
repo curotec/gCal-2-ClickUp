@@ -403,13 +403,14 @@
 
     const title = scrapeTitle(popover);
     const times = scrapeTimes(popover);
+    const editBtn = findEditButton(popover);
 
-    // The popover container can mount a tick or two before its title/time (and
-    // action buttons) render. If this looks like an event popover but the
-    // content isn't ready yet, retry briefly instead of giving up — this is
-    // what caused the "works only on the second open" intermittency.
-    const looksLikeEventPopover = findEditButton(popover) || times || title;
-    if (!times || !title) {
+    // The popover container can mount a tick or two before its title/time and
+    // action buttons render. If this looks like an event popover but the
+    // content/toolbar isn't ready yet, retry briefly instead of giving up —
+    // this is what caused the "works only on the second open" intermittency.
+    if (!times || !title || !editBtn) {
+      const looksLikeEventPopover = editBtn || times || title;
       if (looksLikeEventPopover && attempt < 8) {
         setTimeout(() => inject(popover, attempt + 1), 60);
       }
@@ -445,12 +446,12 @@
       pushEvent(evt, btn);
     });
 
-    // Anchor on the popover itself. The host is absolutely positioned (see
-    // gcal-content.css), so the popover just needs to be a positioned parent.
-    if (getComputedStyle(popover).position === 'static') {
-      popover.style.position = 'relative';
-    }
-    popover.appendChild(host);
+    // Insert into the toolbar's button row (the v2.12.4 placement that was
+    // clickable). The host is absolutely positioned via CSS, so its visual
+    // location is independent of where in the row it's inserted — but living
+    // among the interactive buttons keeps it in a clickable stacking context.
+    const row = editBtn.parentElement;
+    row.insertBefore(host, row.firstChild);
 
     // State-aware: refine the button once we've checked ClickUp
     detectState(evt).then(({ state, title: t }) => applyButtonState(btn, state, t));

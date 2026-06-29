@@ -151,6 +151,13 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.12.7
+- Fixed the GCal input/button being unclickable (v2.12.5–2.12.6 regression):
+  appending the box to the popover root placed it under Google's content
+  stacking context, which no z-index could escape. Reverted to inserting into
+  the toolbar button row (the v2.12.4 placement), keeping the CSS absolute
+  positioning and the v2.12.5 first-open retry fix.
+
 ### v2.12.6
 - Fixed the GCal input and push button being unclickable after v2.12.5: the
   absolutely-positioned box was sitting under Google's popover layer. Raised its
