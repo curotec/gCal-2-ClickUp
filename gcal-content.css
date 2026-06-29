@@ -6,6 +6,7 @@
 .clickup-inject-host {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   position: relative;
 }
 
@@ -17,7 +18,7 @@
   font-size: 14px;
   line-height: 1;
   padding: 6px 8px;
-  margin-right: 4px;
+  margin-right: 0;
   border: none;
   background: transparent;
   color: #444746;
@@ -61,7 +62,7 @@
 /* Inline ticket combo. Colors come from custom properties so the combo
    follows the browser/OS theme (light by default, dark via prefers-color-scheme). */
 .clickup-combo-host {
-  margin-right: 4px;
+  margin-right: 0;
   --cu-field-bg:     #fff;
   --cu-field-text:   #202124;
   --cu-border:       #dadce0;

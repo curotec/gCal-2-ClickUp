@@ -105,13 +105,14 @@ You can push one event straight from the Google Calendar web UI without opening
 the extension popup.
 
 1. In `calendar.google.com`, click an event to open its detail popover
-2. A **→ ClickUp** button appears to the left of the **Edit event** button
+2. A ticket-ID field and a **ClickUp icon button** appear at the left end of the
+   popover's action row (input on the left, button to its right)
 3. The button is **state-aware**, reflecting existing ClickUp entries for that timeframe:
-   - **→ ClickUp** (blue) — nothing logged yet; clicking pushes immediately
-   - **✓ Logged** (green) — the same ticket is already logged for that time
-   - **⚠ Conflict** (red) — a *different* ticket overlaps that time
-   In the green/red states, clicking asks for confirmation before pushing anyway.
-4. A ticket-ID field is always shown. If a ticket ID is detected in the event
+   - **icon only** (neutral) — nothing logged yet; clicking pushes immediately
+   - **icon + green ✓** — the same ticket is already logged for that time
+   - **icon + red ⚠** — a *different* ticket overlaps that time
+   In the ✓/⚠ states, clicking asks for confirmation before pushing anyway.
+4. The ticket-ID field is always shown. If a ticket ID is detected in the event
    title it's **prefilled** so you can confirm it's correct; otherwise the field
    is empty. Either way it offers **live ClickUp search** (same as the popup: type
    4+ characters to search your assigned tasks, or pick from your frequent/favorite
@@ -149,6 +150,12 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v2.12.4
+- Reworked the GCal popover layout to stop the dropdown overflowing into the
+  calendar grid: the whole ClickUp box now sits at the **left** end of the
+  popover action row, with the ticket **input on the left and the push button
+  to its right**. The dropdown opens left-aligned, into the popover.
 
 ### v2.12.3
 - GCal popover dropdown again shows the ticket **name** next to each ID. Names

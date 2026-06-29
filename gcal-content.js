@@ -417,8 +417,8 @@
     btn.className = 'clickup-push-btn';
     btn.type = 'button';
     applyButtonState(btn, 'clean', '');
-    host.appendChild(btn);
 
+    // Layout: ticket input on the LEFT, push button to its right (see v2.12.4).
     // Always show the ticket field. When a ticket ID was detected from the
     // title it's prefilled so you can verify (or correct) it; otherwise it's
     // empty for entry via live search.
@@ -428,6 +428,7 @@
       buildCombo(comboHost, (resolvedId) => { evt.ticketId = resolvedId; }, ticketId);
       host.appendChild(comboHost);
     }
+    host.appendChild(btn);
 
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -435,7 +436,11 @@
       pushEvent(evt, btn);
     });
 
-    editBtn.parentElement.insertBefore(host, editBtn);
+    // Place the whole box at the LEFT end of the action row (not next to Edit),
+    // so the left-aligned dropdown opens into the popover, away from the
+    // calendar grid on the right.
+    const row = editBtn.parentElement;
+    row.insertBefore(host, row.firstChild);
 
     // State-aware: refine the button once we've checked ClickUp
     if (times) {
