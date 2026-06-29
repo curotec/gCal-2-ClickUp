@@ -151,6 +151,11 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.12.6
+- Fixed the GCal input and push button being unclickable after v2.12.5: the
+  absolutely-positioned box was sitting under Google's popover layer. Raised its
+  `z-index` so it's interactive (dropdown stays above it).
+
 ### v2.12.5
 - Fixed the GCal button intermittently not appearing until the second time an
   event was opened: Google sometimes mounts the popover container before its
