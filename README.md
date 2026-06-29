@@ -130,7 +130,7 @@ history, just like popup imports.
 | File | Purpose |
 |---|---|
 | `manifest.json` | Extension manifest (MV3). Contains `{{GOOGLE_CLIENT_ID}}` placeholder; permissions; registers the popup, options page, and both content scripts |
-| `background.js` | Service worker. Handles Google OAuth and all ClickUp API calls (user lookup, fetch entries, task search, import time entry) plus the ad-hoc timer |
+| `background.js` | Service worker. Handles Google OAuth and all ClickUp API calls (user lookup, fetch entries, task search, task-name resolution, import time entry) plus the ad-hoc timer |
 | `popup.html` / `popup.js` / `popup.css` | The toolbar popup: date picker, event list, CSV upload, ticket combos, billable toggles, import |
 | `options.html` / `options.js` / `options.css` | Settings page: ClickUp token, Team ID, skip list, debug mode, ticket-history reset, Google sign-out |
 | `content.js` | Minimal content script on ClickUp pages (liveness ping) |
@@ -149,6 +149,14 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v2.12.3
+- GCal popover dropdown again shows the ticket **name** next to each ID. Names
+  missing from local cache (e.g. frequents built before names were stored) are
+  now resolved from ClickUp via the background (new `GET_TASK_NAMES` handler),
+  matching the popup's behavior
+- The GCal ticket field + dropdown now follow the browser/OS theme — light by
+  default, dark via `prefers-color-scheme` — instead of being hardcoded light
 
 ### v2.12.2
 - GCal popover now always shows the ticket-ID field, even when a ticket is

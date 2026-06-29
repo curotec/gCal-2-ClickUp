@@ -117,6 +117,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // ── Resolve task names for a set of (custom) IDs ────────────────────────────
+  if (message.type === 'GET_TASK_NAMES') {
+    const { clickupToken, teamId, ids } = message;
+    (async () => {
+      try {
+        const names = {};
+        await Promise.all((ids || []).map(async (id) => {
+          try {
+            const res = await fetch(
+              `https://api.clickup.com/api/v2/task/${encodeURIComponent(id)}?custom_task_ids=true&team_id=${teamId}`,
+              { headers: { Authorization: clickupToken } }
+            );
+            if (res.ok) { const d = await res.json(); if (d.name) names[id] = d.name; }
+          } catch (_) {}
+        }));
+        sendResponse({ names });
+      } catch (err) {
+        sendResponse({ error: err.message });
+      }
+    })();
+    return true;
+  }
+
   // ── Live search: tasks assigned to current user, title contains query ───────
   if (message.type === 'SEARCH_CLICKUP_TASKS') {
     const { clickupToken, teamId, userId, query } = message;

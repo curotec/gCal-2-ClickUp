@@ -61,7 +61,7 @@
   // ── Frequent tickets (same 30-day rolling window as the popup) ─────────────
   async function getFrequentTickets() {
     return new Promise(resolve => {
-      chrome.storage.local.get(['ticketFrequency', 'ticketNames', 'ticketFavorites'], (r) => {
+      chrome.storage.local.get(['ticketFrequency', 'ticketNames', 'ticketFavorites', 'clickupToken', 'teamId'], async (r) => {
         const freq = r.ticketFrequency || {};
         const cutoff = Date.now() - THIRTY_DAYS_MS;
         const cleaned = {};
@@ -69,11 +69,29 @@
           const recent = (ts || []).filter(t => t > cutoff);
           if (recent.length) cleaned[id] = recent;
         }
-        const names = r.ticketNames || {};
+        const names = { ...(r.ticketNames || {}) };
         const favIds = r.ticketFavorites || [];
         const sorted = Object.entries(cleaned)
           .sort((a, b) => b[1].length - a[1].length)
           .map(([id]) => id);
+
+        // Resolve names missing from storage (e.g. frequents built before names
+        // were cached), via the background — content scripts can't call the API.
+        const wanted = [...favIds.slice(0, 3), ...sorted].filter((id, i, a) => a.indexOf(id) === i);
+        const missing = wanted.filter(id => !names[id]);
+        if (missing.length && r.clickupToken && r.teamId) {
+          const resp = await sendBg({
+            type: 'GET_TASK_NAMES',
+            clickupToken: r.clickupToken,
+            teamId: r.teamId,
+            ids: missing
+          });
+          if (resp && resp.names) {
+            Object.assign(names, resp.names);
+            chrome.storage.local.set({ ticketNames: names });
+          }
+        }
+
         const favTickets  = favIds.slice(0, 3)
           .map(id => ({ id, name: names[id] || '', favorite: true }));
         const freqTickets = sorted.filter(id => !favIds.includes(id))
