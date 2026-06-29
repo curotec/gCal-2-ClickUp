@@ -6,7 +6,7 @@ body {
   background: #1e1e2e;
   color: #cdd6f4;
   width: 420px;
-  min-height: 200px;
+  min-height: 600px;
 }
 
 #app { padding: 12px; }
@@ -300,9 +300,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   border: 1px solid #45475a;
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  min-width: 270px;
-  max-width: 270px;
-  width: 270px;
+  min-width: 340px;
+  max-width: 340px;
+  width: 340px;
 }
 
 .ticket-dropdown.open {
@@ -310,8 +310,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .ticket-option {
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 4px 12px;
+  font-size: 11px;
+  line-height: 1.4;
   font-family: monospace;
   color: #cdd6f4;
   cursor: pointer;
@@ -330,12 +331,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #6c7086;
   margin: 2px 0 6px;
   font-style: italic;
-}
-
-.ticket-option {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ── Ticket meta row (billable + star) ───────────────────────────────────── */

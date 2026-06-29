@@ -108,6 +108,12 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v2.11.0
+- Paste fix: when the ticket field already holds a complete ticket ID (e.g. a pasted `CTK-1234`), the suggestion dropdown stays closed so it no longer covers the value
+- Popup is now a minimum of 600px tall (was content-driven, ~513px)
+- Dropdown favorites no longer show a leading ★ glyph — the amber color is the only cue (the per-row ☆/★ favorite toggle button is unchanged)
+- Dropdown widened to 340px with tighter, more compact option rows (11px font), so more suggestions are visible at once
+
 ### v2.10.0
 - CSV upload: click **📄 CSV** to import events from a `.csv` file
   - Columns: `title`, `start`, `end`, `tag` (tag optional, used for ticket ID)

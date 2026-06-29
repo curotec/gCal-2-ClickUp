@@ -1,0 +1,158 @@
+/* gcal-content.css
+   Styling for the injected "→ ClickUp" button in the Google Calendar event
+   popover. Goal: sit cleanly inside Google's LIGHT-themed popover and read as
+   a native control, not a bolted-on dark-theme widget. */
+
+.clickup-inject-host {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  left: 30px;
+  top: 15px;
+  z-index: 1000;
+}
+
+.clickup-push-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1;
+  padding: 6px 8px;
+  margin-right: 0;
+  border: none;
+  background: transparent;
+  color: #444746;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 18px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.clickup-btn-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.clickup-btn-glyph {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.clickup-push-btn.clickup-pushing { opacity: 0.6; }
+
+.clickup-push-btn:hover {
+  background: rgba(60, 64, 67, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  .clickup-push-btn:hover { background: rgba(232, 234, 237, 0.12); }
+}
+
+.clickup-push-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* State accents — the icon stays full-color; the glyph carries the state color */
+.clickup-push-btn.clickup-state-logged   .clickup-btn-glyph { color: #188038; }  /* Google green */
+.clickup-push-btn.clickup-state-conflict .clickup-btn-glyph { color: #d93025; }  /* Google red */
+
+/* Inline ticket combo. Colors come from custom properties so the combo
+   follows the browser/OS theme (light by default, dark via prefers-color-scheme). */
+.clickup-combo-host {
+  margin-right: 0;
+  --cu-field-bg:     #fff;
+  --cu-field-text:   #202124;
+  --cu-border:       #dadce0;
+  --cu-accent:       #1a73e8;
+  --cu-menu-bg:      #fff;
+  --cu-option-text:  #202124;
+  --cu-option-hover: #f1f3f4;
+  --cu-muted:        #5f6368;
+  --cu-fav:          #b8860b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .clickup-combo-host {
+    --cu-field-bg:     #2d2e30;
+    --cu-field-text:   #e8eaed;
+    --cu-border:       #5f6368;
+    --cu-accent:       #8ab4f8;
+    --cu-menu-bg:      #2d2e30;
+    --cu-option-text:  #e8eaed;
+    --cu-option-hover: #3c4043;
+    --cu-muted:        #9aa0a6;
+    --cu-fav:          #f9e2af;
+  }
+}
+
+.clickup-combo {
+  position: relative;
+  display: inline-block;
+}
+
+.clickup-ticket-input {
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--cu-border);
+  border-radius: 6px;
+  width: 70px;
+  color: var(--cu-field-text);
+  background: var(--cu-field-bg);
+}
+
+.clickup-ticket-input:focus {
+  outline: none;
+  border-color: var(--cu-accent);
+}
+
+.clickup-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 2000;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--cu-menu-bg);
+  border: 1px solid var(--cu-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  min-width: 280px;
+  max-width: 340px;
+  width: 340px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.clickup-dropdown.open { display: block; }
+
+.clickup-option {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: Roboto, Arial, sans-serif;
+  color: var(--cu-option-text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clickup-option:hover { background: var(--cu-option-hover); }
+
+.clickup-option-fav { color: var(--cu-fav); }  /* amber, mirrors popup favorites */
+
+.clickup-option-info {
+  color: var(--cu-muted);
+  font-style: italic;
+  cursor: default;
+}
+
+.clickup-option-info:hover { background: transparent; }

@@ -13,6 +13,8 @@ function dbg(...args) {
 // ── Constants ─────────────────────────────────────────────────────────────────
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const TICKET_REGEX   = /\b([A-Z]+-\d+)\b/;
+// Anchored variant: the whole input is exactly one ticket ID (e.g. a pasted "CTK-1234")
+const COMPLETE_TICKET_REGEX = /^[A-Z]+-\d+$/;
 const TIMER_KEY      = 'adHocTimer';
 
 // ── Update checker ───────────────────────────────────────────────────────────
@@ -412,7 +414,7 @@ function buildDropdown(dropdown, items, onSelect) {
   items.forEach(t => {
     const li = document.createElement('li');
     li.className = 'ticket-option' + (t.favorite ? ' ticket-option-fav' : '');
-    li.textContent = (t.favorite ? '\u2605 ' : '') + t.id +
+    li.textContent = t.id +
       (t.name ? ' \u2013 ' + t.name.slice(0, 35) + (t.name.length > 35 ? '\u2026' : '') : '');
     li.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -516,6 +518,10 @@ function wireCombo(input, dropdown, onSelect) {
 
       // Empty input → frequents
       if (!value) { showFrequents(); return; }
+
+      // Complete ticket ID (e.g. pasted "CTK-1234") → nothing to suggest, keep
+      // the dropdown closed so it never covers the value the user just entered
+      if (COMPLETE_TICKET_REGEX.test(upper)) { dropdown.classList.remove('open'); return; }
 
       // Starts with CTK- (any length) → keep showing frequents, no search
       if (upper.startsWith('CTK-')) { showFrequents(); return; }
