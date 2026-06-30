@@ -42,8 +42,19 @@
       .replace(/^[\s|\-\u2013]+|[\s|\-\u2013]+$/g, '')
       .trim() || raw;
   }
+
+  // Short local time label (e.g. "11:30 AM") for confirm dialogs.
+  function fmtTime(ms) {
+    return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
   // icon16 inlined as a data URL so the content script needs no web_accessible_resources
   const ICON16_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAAC7UlEQVR4nDWTX4hUdRTHP+f3u/fOHXd2uuM6u7YJCi1RtFIEUSGKYRQRsYb1EG0iaj1EkOBjPbRQtA8L6UsQxKIYFUVkhU8+mCVRVBQWSKu2KW7Kjrs77p+Ze+fe3+/0MOOBc57O9wvf7/cciUol3frcJBse3EvqDKqCqKCiAKCAgKqAL5j65QCb8/+YbrR4+8+/Ce4fe5f6Y4doLjVJ1ilxAKqKotzmwIB2ByaOkcVl3rizDowgT04u6HLbMvaQsn9HhBEB78EaiEJQA3kGzoEY4nyVtekP6Hz5FVpNCNLcUi17DuwoUa9astRh4gh1Hj46gdgWuu8VMCGSt9FkEDn4Gosz3xC5BoEHSqEgQJZ5XBzimm38+19jfzxHVLmMdxfIX5qA8gDSSjElJRm/QVDMY4SeZgUTGvy/KxRvnkHOXMXvegK/exvh7KeUTr6Aaf6FhCGoxxYezR2BegUFsaBrjvydWcwli3/xcYJXH6aQPehZTzQzCT89TWfX7yAhiCICAdJNSh1I1WL3bIKlOuH4MKQ5qOB2vkc6GEF5PYQ1SOd72ULQgyMCWijlZxJChLXVDtIViE9bVEYn8A6yogAx3C6j2gMrWAtzl3POnU3pqwhxJMShUImFb/+5xcXmMoHp7iLdDvCC94INhWbDMXW4w5waZps52x+xeIFTV5SpmYCB/oKTOwuGrZKpIAqBc4vgLS4fJNkgPDtuOP6x48PjyvR3ntUazJUstSE4dI9lYzUmzSIKwCAEbugtbpkAzBFCM8BTz1tGRh2nv3dcWBDa/bB7RBh7wDI6ZFj55AQLp0+xciPmjuReglKY0Vid58gPx3h928tYsdS3wN67od3uPkNfCA7LlUabzhef0fr1Z/o3bcYUfch944/quu13MX/9JrVyP8Mb1+Nc77Bs12nvFBMYtJ1z+NgfjNqYZKDC0Ws3CS59/htbCkeydZBWnrGUNhExXaeLLoGook7weUGlVsH6iKNzi0ycv8j/P4dO3R/qHMsAAAAASUVORK5CYII=";
+
+  // Inline "remove" icon (circled X). Colored via CSS `fill: currentColor` so it
+  // can inherit the button's red. viewBox kept from the source path.
+  const DELETE_ICON_SVG =
+    '<svg class="clickup-del-icon" viewBox="0 0 122.87 122.87" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+    '<path d="M18,18A61.45,61.45,0,1,1,0,61.44,61.28,61.28,0,0,1,18,18ZM77.38,39l6.53,6.54a4,4,0,0,1,0,5.63L73.6,61.44,83.91,71.75a4,4,0,0,1,0,5.63l-6.53,6.53a4,4,0,0,1-5.63,0L61.44,73.6,51.13,83.91a4,4,0,0,1-5.63,0L39,77.38a4,4,0,0,1,0-5.63L49.28,61.44,39,51.13a4,4,0,0,1,0-5.63L45.5,39a4,4,0,0,1,5.63,0L61.44,49.28,71.75,39a4,4,0,0,1,5.63,0ZM61.44,10.54a50.91,50.91,0,1,0,36,14.91,50.83,50.83,0,0,0-36-14.91Z"/></svg>';
 
   function dbg(...args) {
     chrome.storage.local.get(['debugMode'], (r) => {
@@ -293,8 +304,10 @@
     const evtStart = new Date(evt.times.startISO).getTime();
     const evtEnd   = new Date(evt.times.endISO).getTime();
 
-    // Pull the existing entry's ticket + tag names into a small display object.
+    // Pull the existing entry's id + ticket + tag names into a small object —
+    // id lets a delete target it, ticket/tags drive the read-only display.
     const describe = (entry, customId) => ({
+      id: entry.id,
       ticketId: customId || (entry.task && entry.task.custom_id) || '',
       tags: (entry.tags || []).map(t => t && t.name).filter(Boolean)
     });
@@ -432,7 +445,7 @@
   }
 
   // ── Push ───────────────────────────────────────────────────────────────────
-  async function pushEvent(evt, btn) {
+  async function pushEvent(evt, btn, recheck) {
     const settings = await getSettings();
     if (!settings.clickupToken || !settings.teamId) {
       alert('Set your ClickUp API token and Team ID in the extension Settings first.');
@@ -443,7 +456,6 @@
 
     // The button is disabled in the logged/conflict states (see applyButtonState),
     // so reaching here means the timeframe is clear. Push creates a new entry.
-    const prevState = 'clean';
     const prevTitle = btn.title;
     btn.classList.add('clickup-pushing');
     btn.disabled = true;
@@ -461,12 +473,52 @@
     btn.classList.remove('clickup-pushing');
     if (result && result.success) {
       recordTicketUse(evt.ticketId, result.taskName || null);
-      // Now logged for this timeframe → applyButtonState disables the button.
-      applyButtonState(btn, 'logged', 'Pushed to ClickUp \u2192 ' + evt.ticketId);
+      // Re-check so the now-logged state is reflected (button disabled, ticket
+      // shown read-only, delete button available).
+      if (recheck) recheck();
+      else applyButtonState(btn, 'logged', 'Pushed to ClickUp \u2192 ' + evt.ticketId);
     } else {
       // Restore the clean (enabled) state so the user can retry.
-      applyButtonState(btn, prevState, prevTitle);
+      applyButtonState(btn, 'clean', prevTitle);
       alert('Push failed: ' + ((result && result.error) || 'Unknown error'));
+    }
+  }
+
+  // ── Delete an existing (blocking) ClickUp entry ────────────────────────────
+  // Shown in the logged/conflict states. Confirms first, then deletes via the
+  // background, then re-checks so the popover reflects the cleared state.
+  async function deleteEntry(evt, delBtn, recheck) {
+    const settings = await getSettings();
+    if (!settings.clickupToken || !settings.teamId) {
+      alert('Set your ClickUp API token and Team ID in the extension Settings first.');
+      return;
+    }
+    if (!evt.matchEntryId) { alert('No matching ClickUp entry to delete.'); return; }
+
+    const ticketLabel = (evt.ticketDisplay || evt.ticketId || 'this task');
+    const win = evt.times
+      ? ' (' + fmtTime(new Date(evt.times.startISO).getTime()) + ' \u2013 ' +
+        fmtTime(new Date(evt.times.endISO).getTime()) + ')'
+      : '';
+    if (!confirm(
+      'Delete the existing ClickUp time entry for ' + ticketLabel + win + '?\n\n' +
+      'It can be restored from ClickUp\u2019s Trash within 30 days.'
+    )) return;
+
+    delBtn.classList.add('clickup-pushing');
+    delBtn.disabled = true;
+    const result = await sendBg({
+      type: 'DELETE_TIME_ENTRY',
+      timerId: evt.matchEntryId,
+      clickupToken: settings.clickupToken,
+      teamId: settings.teamId
+    });
+    delBtn.disabled = false;
+    delBtn.classList.remove('clickup-pushing');
+    if (result && result.success) {
+      if (recheck) recheck();
+    } else {
+      alert('Delete failed: ' + ((result && result.error) || 'Unknown error'));
     }
   }
 
@@ -513,6 +565,16 @@
     btn.className = 'clickup-push-btn';
     btn.type = 'button';
     applyButtonState(btn, 'clean', '');
+
+    // Delete button — only shown in the logged/conflict states (an entry exists).
+    // Lets you remove the blocking ClickUp entry straight from the popover. Hidden
+    // by default; shown/hidden by applyState. The matched entry's id is read from
+    // evt.matchEntryId at click time.
+    const delBtn = document.createElement('button');
+    delBtn.className = 'clickup-del-btn clickup-hidden';
+    delBtn.type = 'button';
+    delBtn.title = 'Delete the existing ClickUp entry';
+    delBtn.innerHTML = DELETE_ICON_SVG;
 
     // Tag dropdown — lives between the ticket combo and the push button.
     // Populated once tags load; its selected value is remembered per ticket
@@ -570,41 +632,25 @@
     host.appendChild(comboHost);
     host.appendChild(tagHost);
     host.appendChild(btn);
+    host.appendChild(delBtn);
 
     // Prefill the tag select for any auto-detected ticket.
     if (ticketId) refreshTagSelect(ticketId);
 
     // When an overlapping ClickUp entry exists (logged/conflict), the push
-    // button is disabled — so the ticket field + tag select become read-only
-    // indicators of what's ALREADY in ClickUp. We show the existing entry's
-    // ticket and tag(s) (comma-joined) and grey both fields out. On a clean
-    // state we restore the editable fields for the current event.
+    // button is disabled and the ticket field becomes a read-only indicator of
+    // the existing entry's ticket. The tag select is HIDDEN to make room for a
+    // delete button (which removes the blocking entry). On a clean state we
+    // restore the editable fields and hide the delete button.
     function applyLoggedDisplay(logged) {
       if (ticketInput) {
         ticketInput.value = logged.ticketId || '';
         ticketInput.disabled = true;
       }
-      const joined = (logged.tags || []).join(', ');
-      let tagSel = tagHost.querySelector('select');
-      // No select present (e.g. conflict with no event-ticket, or tags not
-      // loaded) — create a minimal standalone one so the tag still shows.
-      if (!tagSel) {
-        tagSel = document.createElement('select');
-        tagSel.className = 'clickup-tag-select';
-        tagHost.appendChild(tagSel);
-      }
-      // Inject (or reuse) a temporary option holding the exact joined text, so
-      // it can be displayed even if it matches no preset workspace tag.
-      let displayOpt = tagSel.querySelector('option[data-clickup-logged]');
-      if (!displayOpt) {
-        displayOpt = document.createElement('option');
-        displayOpt.setAttribute('data-clickup-logged', '1');
-        tagSel.appendChild(displayOpt);
-      }
-      displayOpt.value = '\u0000logged';      // sentinel value, never saved
-      displayOpt.textContent = joined || 'No tag';
-      tagSel.value = displayOpt.value;
-      tagSel.disabled = true;
+      tagHost.classList.add('clickup-hidden');     // free room for delete button
+      evt.matchEntryId = logged.id || null;
+      evt.ticketDisplay = logged.ticketId || '';   // for the delete confirm label
+      delBtn.classList.toggle('clickup-hidden', !logged.id);
     }
 
     function clearLoggedDisplay() {
@@ -614,8 +660,10 @@
         // different existing entry's ticket).
         ticketInput.value = evt.ticketId || '';
       }
-      // Rebuild the tag select cleanly from the current event ticket — this
-      // drops any temporary logged-display option and restores editability.
+      tagHost.classList.remove('clickup-hidden');
+      delBtn.classList.add('clickup-hidden');
+      evt.matchEntryId = null;
+      // Rebuild the tag select cleanly from the current event ticket.
       refreshTagSelect(evt.ticketId);
     }
 
@@ -632,10 +680,26 @@
       }
     }
 
+    // Re-run detection and refresh the whole UI (button, fields, delete button).
+    // Used after a push or delete so the popover reflects ClickUp's new reality
+    // without needing to be reopened.
+    function recheck() {
+      loggedDisplayActive = false;
+      applyButtonState(btn, 'clean', 'Checking ClickUp\u2026');
+      detectState(evt).then(({ state, title: t, logged }) =>
+        applyState(state, t, logged));
+    }
+
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      pushEvent(evt, btn);
+      pushEvent(evt, btn, recheck);
+    });
+
+    delBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      deleteEntry(evt, delBtn, recheck);
     });
 
     // Insert into the toolbar's button row (the v2.12.4 placement that was

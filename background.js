@@ -117,6 +117,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // ── ClickUp API: delete a time entry (DELETE) ──────────────────────────────
+  // Used by the GCal push button's delete action to remove a blocking entry.
+  // ClickUp moves deleted entries to Trash (recoverable ~30 days).
+  if (message.type === 'DELETE_TIME_ENTRY') {
+    const { timerId, clickupToken, teamId } = message;
+    (async () => {
+      try {
+        const res = await fetch(
+          `https://api.clickup.com/api/v2/team/${teamId}/time_entries/${encodeURIComponent(timerId)}`,
+          { method: 'DELETE', headers: { Authorization: clickupToken } }
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(`Time entry delete failed (${res.status}): ${err.err || err.error || res.statusText}`);
+        }
+        sendResponse({ success: true });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    })();
+    return true;
+  }
+
   // ── Fetch the workspace's time-entry tags (for content scripts) ────────────
   // Content scripts can't call the ClickUp API directly, so the GCal popover
   // routes tag fetching through here. Mirrors the popup's direct fetch +

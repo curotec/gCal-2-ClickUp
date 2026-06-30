@@ -62,6 +62,42 @@
 .clickup-push-btn.clickup-state-logged   .clickup-btn-glyph { color: #188038; }  /* Google green */
 .clickup-push-btn.clickup-state-conflict .clickup-btn-glyph { color: #d93025; }  /* Google red */
 
+/* Delete button — same circular icon-button shape as the push button, tinted
+   red. Shown only in the logged/conflict states (an entry exists to remove). */
+.clickup-del-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: #d93025;                 /* Google red; SVG uses fill: currentColor */
+  cursor: pointer;
+  border-radius: 18px;
+  transition: background 0.15s;
+}
+
+.clickup-del-btn:hover:not(:disabled) {
+  background: rgba(217, 48, 37, 0.10);
+}
+
+.clickup-del-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.clickup-del-btn.clickup-pushing { opacity: 0.6; }
+
+.clickup-del-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  fill: currentColor;
+}
+
+/* Generic hide utility for injected elements. */
+.clickup-hidden { display: none !important; }
+
 /* Inline ticket combo. Colors come from custom properties so the combo
    follows the browser/OS theme (light by default, dark via prefers-color-scheme). */
 .clickup-combo-host {

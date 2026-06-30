@@ -112,12 +112,13 @@ the extension popup.
    - **icon only** (neutral) — nothing logged yet; clicking pushes immediately
    - **icon + green ✓** — the same ticket is already logged for that time
    - **icon + red ⚠** — a *different* ticket overlaps that time
-   In both the **✓ and ⚠ states the button is disabled**, so you can't create a
-   duplicate or overlapping entry. The ticket field and tag dropdown also switch to a
-   greyed, **read-only view showing the existing entry's ticket ID and tag(s)** (tags
-   comma-separated if there's more than one) — so you can see what's already logged
-   without opening ClickUp. To log anyway, adjust the event time (or the existing
-   ClickUp entry) so they no longer overlap, then reopen the popover.
+   In both the **✓ and ⚠ states the push button is disabled**, so you can't create a
+   duplicate or overlapping entry. The ticket field switches to a greyed, **read-only
+   view showing the existing entry's ticket ID**, the tag dropdown is **hidden**, and a
+   **red delete button** appears. Clicking the delete button removes the blocking
+   ClickUp entry (after a confirmation) — once it's gone, the fields re-enable and you
+   can push normally. Deleted entries go to ClickUp's Trash and can be restored there
+   within 30 days.
 4. The ticket-ID field is always shown. If a ticket ID is detected in the event
    title it's **prefilled** so you can confirm it's correct; otherwise the field
    is empty. Either way it offers **live ClickUp search** (same as the popup: type
@@ -128,6 +129,7 @@ the extension popup.
    valid ticket is set, it loads your workspace's time-entry tags and remembers the
    tag you last used for that ticket (shared with the popup's per-ticket tag memory).
    Pick a tag — or leave it on **No tag** — then click the ClickUp button to push.
+   (The tag dropdown is hidden in the ✓/⚠ states to make room for the delete button.)
 
 The ClickUp time-entry **description** is cleaned before pushing: any ticket ID in
 the event title (e.g. `CTK-1234`) is stripped out, matching the popup's behavior so
@@ -136,10 +138,11 @@ the description reads as the plain event name.
 Pushed entries are marked billable by default and are recorded in your frequent-ticket
 history, just like popup imports.
 
-> **When is the button disabled?** Detection matches on **time overlap** with the
+> **When is the push button disabled?** Detection matches on **time overlap** with the
 > event's window — same ticket → ✓ (would duplicate), different ticket → ⚠
-> (overlapping). Either way the push is blocked. This is a deliberately simple guard:
-> it prevents duplicates without trying to merge or update existing entries.
+> (overlapping). Either way the push is blocked, and a delete button is offered to
+> remove the blocking entry. This is a deliberately simple guard: it prevents
+> duplicates without trying to merge or update existing entries.
 
 > **Note:** Google Calendar's page markup is not a stable, documented API. If a
 > Google UI update ever hides the button or misreads an event's time, it can be
@@ -151,7 +154,7 @@ history, just like popup imports.
 | File | Purpose |
 |---|---|
 | `manifest.json` | Extension manifest (MV3). Contains `{{GOOGLE_CLIENT_ID}}` placeholder; permissions; registers the popup, options page, and both content scripts |
-| `background.js` | Service worker. Handles Google OAuth and all ClickUp API calls (user lookup, fetch entries, task search, task-name resolution, tag fetch, import time entry) plus the ad-hoc timer |
+| `background.js` | Service worker. Handles Google OAuth and all ClickUp API calls (user lookup, fetch entries, task search, task-name resolution, tag fetch, import time entry, delete time entry) plus the ad-hoc timer |
 | `popup.html` / `popup.js` / `popup.css` | The toolbar popup: date picker, event list, CSV upload, ticket combos, billable toggles, import |
 | `options.html` / `options.js` / `options.css` | Settings page: ClickUp token, Team ID, skip list, debug mode, ticket-history reset, Google sign-out |
 | `content.js` | Minimal content script on ClickUp pages (liveness ping) |
@@ -170,6 +173,23 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v3.0.5
+Delete the blocking ClickUp entry straight from the Google Calendar popover.
+
+- **Delete button in the ✓/⚠ states.** When the push button is disabled because an
+  overlapping entry exists (same ticket or different), a red **delete button** now
+  appears. Clicking it removes that existing ClickUp entry (after a confirmation that
+  names the ticket + time window and notes the 30-day Trash recovery). Once deleted,
+  the popover re-checks ClickUp, the fields re-enable, and you can push normally.
+- The **tag dropdown is hidden** in these states to make room for the delete button;
+  the ticket field still shows the existing entry's ticket as a read-only indicator.
+  (This supersedes v3.0.4's greyed tag display.)
+- After a successful push or delete, the popover **re-checks state** in place instead
+  of needing to be reopened.
+- New service-worker message: `DELETE_TIME_ENTRY` (`DELETE .../time_entries/{timer_id}`).
+  `detectState()` now also returns the matched entry's `id` to target the delete.
+- Delete icon is the supplied inline "remove" SVG, tinted red via `fill: currentColor`.
 
 ### v3.0.4
 The disabled push button now shows what's already in ClickUp.
