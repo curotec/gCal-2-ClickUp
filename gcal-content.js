@@ -275,6 +275,9 @@
   }
 
   // ── State detection: is time already logged for this event's window? ───────
+  // On a match (logged or conflict) also returns { logged } describing the
+  // existing ClickUp entry — its ticket (custom_id) and tag names — so the
+  // popover can show what's already there while the push button is disabled.
   async function detectState(evt) {
     const settings = await getSettings();
     if (!settings.clickupToken || !settings.teamId || !evt.times) {
@@ -289,7 +292,14 @@
     const entries = (r && r.entries) || [];
     const evtStart = new Date(evt.times.startISO).getTime();
     const evtEnd   = new Date(evt.times.endISO).getTime();
-    let state = 'clean', title = '';
+
+    // Pull the existing entry's ticket + tag names into a small display object.
+    const describe = (entry, customId) => ({
+      ticketId: customId || (entry.task && entry.task.custom_id) || '',
+      tags: (entry.tags || []).map(t => t && t.name).filter(Boolean)
+    });
+
+    let state = 'clean', title = '', logged = null;
     for (const entry of entries) {
       const entryStart = parseInt(entry.start);
       const entryEnd = entry.end && parseInt(entry.end) > 0
@@ -301,13 +311,18 @@
         evt.ticketId.toUpperCase() === entryCustomId;
       const overlaps = evtStart < entryEnd && evtEnd > entryStart;
       if (sameTask && overlaps) {
-        return { state: 'logged', title: 'Already logged in ClickUp for ' + entryCustomId };
+        return {
+          state: 'logged',
+          title: 'Already logged in ClickUp for ' + entryCustomId,
+          logged: describe(entry, entryCustomId)
+        };
       } else if (!sameTask && overlaps && state !== 'logged') {
         state = 'conflict';
         title = 'Time conflict with existing ClickUp entry: ' + (entryCustomId || 'unknown task');
+        logged = describe(entry, entryCustomId);
       }
     }
-    return { state, title };
+    return { state, title, logged };
   }
 
   function applyButtonState(btn, state, title) {
@@ -505,17 +520,23 @@
     const tagHost = document.createElement('div');
     tagHost.className = 'clickup-tag-host';
 
+    // True while the fields are showing an existing ClickUp entry (read-only).
+    // Guards the async tag refresh from clobbering that display if it resolves
+    // after we've switched into the logged/conflict view.
+    let loggedDisplayActive = false;
+
     // (Re)build the tag <select> for the current resolved ticket, restoring its
     // saved preference. Called on initial ticket and whenever it changes.
     function refreshTagSelect(forTicketId) {
       if (!forTicketId) {
-        tagHost.innerHTML = '';
+        if (!loggedDisplayActive) tagHost.innerHTML = '';
         evt.tag = '';
         return;
       }
       Promise.all([fetchTags(), getTagPreference(forTicketId)]).then(([tags, savedTag]) => {
-        // Bail if the ticket changed again while we were loading.
-        if (evt.ticketId !== forTicketId) return;
+        // Bail if the ticket changed again while we were loading, or if a
+        // read-only logged display is now in effect.
+        if (evt.ticketId !== forTicketId || loggedDisplayActive) return;
         tagHost.innerHTML = '';
         if (!tags.length) { evt.tag = ''; return; }
         const sel = buildTagSelect(savedTag, tags);
@@ -532,15 +553,19 @@
     // Always show the ticket field, prefilled with any detected ticket ID.
     const comboHost = document.createElement('div');
     comboHost.className = 'clickup-combo-host';
-    buildCombo(comboHost, (resolvedId) => {
+    const ticketInput = buildCombo(comboHost, (resolvedId) => {
       evt.ticketId = resolvedId;
+      // Leaving any read-only logged view: re-enable editing before re-checking.
+      loggedDisplayActive = false;
       refreshTagSelect(resolvedId);
       // Re-detect against the newly chosen ticket so the enable/disable guard
       // stays accurate (a conflict for the old ticket may not apply to the new
       // one, and vice versa). While checking, neutralize the button so a stale
       // logged/conflict disable doesn't linger or mis-enable.
       applyButtonState(btn, 'clean', 'Checking ClickUp\u2026');
-      detectState(evt).then(({ state, title: t }) => applyButtonState(btn, state, t));
+      if (ticketInput) ticketInput.disabled = false;
+      detectState(evt).then(({ state, title: t, logged }) =>
+        applyState(state, t, logged));
     }, ticketId);
     host.appendChild(comboHost);
     host.appendChild(tagHost);
@@ -548,6 +573,64 @@
 
     // Prefill the tag select for any auto-detected ticket.
     if (ticketId) refreshTagSelect(ticketId);
+
+    // When an overlapping ClickUp entry exists (logged/conflict), the push
+    // button is disabled — so the ticket field + tag select become read-only
+    // indicators of what's ALREADY in ClickUp. We show the existing entry's
+    // ticket and tag(s) (comma-joined) and grey both fields out. On a clean
+    // state we restore the editable fields for the current event.
+    function applyLoggedDisplay(logged) {
+      if (ticketInput) {
+        ticketInput.value = logged.ticketId || '';
+        ticketInput.disabled = true;
+      }
+      const joined = (logged.tags || []).join(', ');
+      let tagSel = tagHost.querySelector('select');
+      // No select present (e.g. conflict with no event-ticket, or tags not
+      // loaded) — create a minimal standalone one so the tag still shows.
+      if (!tagSel) {
+        tagSel = document.createElement('select');
+        tagSel.className = 'clickup-tag-select';
+        tagHost.appendChild(tagSel);
+      }
+      // Inject (or reuse) a temporary option holding the exact joined text, so
+      // it can be displayed even if it matches no preset workspace tag.
+      let displayOpt = tagSel.querySelector('option[data-clickup-logged]');
+      if (!displayOpt) {
+        displayOpt = document.createElement('option');
+        displayOpt.setAttribute('data-clickup-logged', '1');
+        tagSel.appendChild(displayOpt);
+      }
+      displayOpt.value = '\u0000logged';      // sentinel value, never saved
+      displayOpt.textContent = joined || 'No tag';
+      tagSel.value = displayOpt.value;
+      tagSel.disabled = true;
+    }
+
+    function clearLoggedDisplay() {
+      if (ticketInput) {
+        ticketInput.disabled = false;
+        // Restore the event's own ticket (the logged view may have shown a
+        // different existing entry's ticket).
+        ticketInput.value = evt.ticketId || '';
+      }
+      // Rebuild the tag select cleanly from the current event ticket — this
+      // drops any temporary logged-display option and restores editability.
+      refreshTagSelect(evt.ticketId);
+    }
+
+    // Single funnel for state results: set the button, then reflect (or clear)
+    // the existing-entry display on the fields.
+    function applyState(state, t, logged) {
+      applyButtonState(btn, state, t);
+      if ((state === 'logged' || state === 'conflict') && logged) {
+        loggedDisplayActive = true;
+        applyLoggedDisplay(logged);
+      } else {
+        loggedDisplayActive = false;
+        clearLoggedDisplay();
+      }
+    }
 
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -563,7 +646,8 @@
     row.insertBefore(host, row.firstChild);
 
     // State-aware: refine the button once we've checked ClickUp
-    detectState(evt).then(({ state, title: t }) => applyButtonState(btn, state, t));
+    detectState(evt).then(({ state, title: t, logged }) =>
+      applyState(state, t, logged));
   }
 
   function scan() {

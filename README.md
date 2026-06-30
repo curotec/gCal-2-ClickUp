@@ -113,8 +113,11 @@ the extension popup.
    - **icon + green ✓** — the same ticket is already logged for that time
    - **icon + red ⚠** — a *different* ticket overlaps that time
    In both the **✓ and ⚠ states the button is disabled**, so you can't create a
-   duplicate or overlapping entry. To log anyway, adjust the event time (or the
-   existing ClickUp entry) so they no longer overlap, then reopen the popover.
+   duplicate or overlapping entry. The ticket field and tag dropdown also switch to a
+   greyed, **read-only view showing the existing entry's ticket ID and tag(s)** (tags
+   comma-separated if there's more than one) — so you can see what's already logged
+   without opening ClickUp. To log anyway, adjust the event time (or the existing
+   ClickUp entry) so they no longer overlap, then reopen the popover.
 4. The ticket-ID field is always shown. If a ticket ID is detected in the event
    title it's **prefilled** so you can confirm it's correct; otherwise the field
    is empty. Either way it offers **live ClickUp search** (same as the popup: type
@@ -167,6 +170,21 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v3.0.4
+The disabled push button now shows what's already in ClickUp.
+
+- **Read-only existing-entry view.** When the push button is disabled because an
+  overlapping entry exists (✓ same ticket or ⚠ different ticket), the ticket field
+  and tag dropdown now display that **existing entry's ticket ID and tag(s)**, greyed
+  and locked. Multiple tags are shown comma-separated. This turns the disabled state
+  into an at-a-glance answer to "what's already logged here?" without opening ClickUp.
+- Both fields are fully **locked** in this state (pure indicator); changing the ticket
+  isn't offered here — adjust the times to clear the overlap instead.
+- `detectState()` now returns the matched entry's ticket + tag names alongside the
+  state. The existing `GET_CLICKUP_ENTRIES` query already requested `include_task_tags`,
+  so no API change was needed. An async-safe guard keeps the tag-load from clobbering
+  the read-only view.
 
 ### v3.0.3
 Reverted the v3.0.2 update-in-place experiment; replaced with a simpler duplicate guard.

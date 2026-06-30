@@ -112,6 +112,12 @@
   border-color: var(--cu-accent);
 }
 
+/* Read-only indicator state (an entry already exists in ClickUp). */
+.clickup-ticket-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .clickup-dropdown {
   display: none;
   position: absolute;
@@ -194,4 +200,10 @@
 .clickup-tag-select:focus {
   outline: none;
   border-color: var(--cu-accent);
+}
+
+/* Read-only indicator state (showing an existing ClickUp entry's tag). */
+.clickup-tag-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
