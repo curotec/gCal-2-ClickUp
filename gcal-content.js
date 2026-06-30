@@ -42,6 +42,11 @@
       .replace(/^[\s|\-\u2013]+|[\s|\-\u2013]+$/g, '')
       .trim() || raw;
   }
+
+  // Short local time label (e.g. "11:30 AM") for confirm dialogs.
+  function fmtTime(ms) {
+    return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
   // icon16 inlined as a data URL so the content script needs no web_accessible_resources
   const ICON16_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAAC7UlEQVR4nDWTX4hUdRTHP+f3u/fOHXd2uuM6u7YJCi1RtFIEUSGKYRQRsYb1EG0iaj1EkOBjPbRQtA8L6UsQxKIYFUVkhU8+mCVRVBQWSKu2KW7Kjrs77p+Ze+fe3+/0MOOBc57O9wvf7/cciUol3frcJBse3EvqDKqCqKCiAKCAgKqAL5j65QCb8/+YbrR4+8+/Ce4fe5f6Y4doLjVJ1ilxAKqKotzmwIB2ByaOkcVl3rizDowgT04u6HLbMvaQsn9HhBEB78EaiEJQA3kGzoEY4nyVtekP6Hz5FVpNCNLcUi17DuwoUa9astRh4gh1Hj46gdgWuu8VMCGSt9FkEDn4Gosz3xC5BoEHSqEgQJZ5XBzimm38+19jfzxHVLmMdxfIX5qA8gDSSjElJRm/QVDMY4SeZgUTGvy/KxRvnkHOXMXvegK/exvh7KeUTr6Aaf6FhCGoxxYezR2BegUFsaBrjvydWcwli3/xcYJXH6aQPehZTzQzCT89TWfX7yAhiCICAdJNSh1I1WL3bIKlOuH4MKQ5qOB2vkc6GEF5PYQ1SOd72ULQgyMCWijlZxJChLXVDtIViE9bVEYn8A6yogAx3C6j2gMrWAtzl3POnU3pqwhxJMShUImFb/+5xcXmMoHp7iLdDvCC94INhWbDMXW4w5waZps52x+xeIFTV5SpmYCB/oKTOwuGrZKpIAqBc4vgLS4fJNkgPDtuOP6x48PjyvR3ntUazJUstSE4dI9lYzUmzSIKwCAEbugtbpkAzBFCM8BTz1tGRh2nv3dcWBDa/bB7RBh7wDI6ZFj55AQLp0+xciPmjuReglKY0Vid58gPx3h928tYsdS3wN67od3uPkNfCA7LlUabzhef0fr1Z/o3bcYUfch944/quu13MX/9JrVyP8Mb1+Nc77Bs12nvFBMYtJ1z+NgfjNqYZKDC0Ws3CS59/htbCkeydZBWnrGUNhExXaeLLoGook7weUGlVsH6iKNzi0ycv8j/P4dO3R/qHMsAAAAASUVORK5CYII=";
 
@@ -275,6 +280,11 @@
   }
 
   // ── State detection: is time already logged for this event's window? ───────
+  // Returns { state, title } and, when state === 'logged', also { matchEntry }
+  // carrying the matched entry's id + window so a click can UPDATE it in place
+  // (PUT) rather than create a duplicate. Match is loose overlap on the same
+  // ticket; the FIRST overlapping same-ticket entry wins (consistent with how
+  // the logged state is chosen).
   async function detectState(evt) {
     const settings = await getSettings();
     if (!settings.clickupToken || !settings.teamId || !evt.times) {
@@ -301,7 +311,11 @@
         evt.ticketId.toUpperCase() === entryCustomId;
       const overlaps = evtStart < entryEnd && evtEnd > entryStart;
       if (sameTask && overlaps) {
-        return { state: 'logged', title: 'Already logged in ClickUp for ' + entryCustomId };
+        return {
+          state: 'logged',
+          title: 'Already logged in ClickUp for ' + entryCustomId,
+          matchEntry: { id: entry.id, start: entryStart, end: entryEnd }
+        };
       } else if (!sameTask && overlaps && state !== 'logged') {
         state = 'conflict';
         title = 'Time conflict with existing ClickUp entry: ' + (entryCustomId || 'unknown task');
@@ -421,22 +435,46 @@
     if (!evt.ticketId) { alert('Enter a ticket ID first.'); return; }
     if (!evt.times) { alert('Could not read this event\u2019s time range.'); return; }
 
-    // Warn-but-allow when already logged or conflicting
-    if (btn.classList.contains('clickup-state-logged') ||
-        btn.classList.contains('clickup-state-conflict')) {
-      const verb = btn.classList.contains('clickup-state-logged')
+    // Decide create-vs-update. A 'logged' state with a matched entry means the
+    // same ticket already has an overlapping entry — update it in place rather
+    // than creating a duplicate. 'conflict' (different ticket) still warns and
+    // creates new; 'clean' creates new silently.
+    const isLogged   = btn.classList.contains('clickup-state-logged');
+    const isConflict = btn.classList.contains('clickup-state-conflict');
+    const doUpdate   = isLogged && evt.matchEntry && evt.matchEntry.id;
+
+    if (doUpdate) {
+      const win = fmtTime(evt.matchEntry.start) + ' \u2013 ' + fmtTime(evt.matchEntry.end);
+      const next = fmtTime(new Date(evt.times.startISO).getTime()) + ' \u2013 ' +
+                   fmtTime(new Date(evt.times.endISO).getTime());
+      if (!confirm(
+        'An entry for this ticket already overlaps this time (' + win + ').\n\n' +
+        'Update that entry to match this event (' + next + ')?'
+      )) return;
+    } else if (isLogged || isConflict) {
+      const verb = isLogged
         ? 'Time already appears logged for this task/timeframe.'
         : 'This overlaps an existing ClickUp entry for a different task.';
       if (!confirm(verb + '\n\nPush anyway?')) return;
     }
 
     // Capture state to restore on failure (clean/logged/conflict from classes)
-    const prevState = btn.classList.contains('clickup-state-logged') ? 'logged'
-      : btn.classList.contains('clickup-state-conflict') ? 'conflict' : 'clean';
+    const prevState = isLogged ? 'logged' : isConflict ? 'conflict' : 'clean';
     const prevTitle = btn.title;
     btn.classList.add('clickup-pushing');
     btn.disabled = true;
-    const result = await sendBg({
+    const result = await sendBg(doUpdate ? {
+      type: 'UPDATE_TIME_ENTRY',
+      timerId: evt.matchEntry.id,
+      ticketId: evt.ticketId,
+      startTime: evt.times.startISO,
+      endTime: evt.times.endISO,
+      title: cleanTitle(evt.title),
+      billable: true,
+      tag: evt.tag || '',
+      clickupToken: settings.clickupToken,
+      teamId: settings.teamId
+    } : {
       type: 'IMPORT_TIME_ENTRY',
       ticketId: evt.ticketId,
       startTime: evt.times.startISO,
@@ -451,10 +489,12 @@
     btn.classList.remove('clickup-pushing');
     if (result && result.success) {
       recordTicketUse(evt.ticketId, result.taskName || null);
-      applyButtonState(btn, 'logged', 'Pushed to ClickUp \u2192 ' + evt.ticketId);
+      applyButtonState(btn, 'logged',
+        (doUpdate ? 'Updated in ClickUp \u2192 ' : 'Pushed to ClickUp \u2192 ') + evt.ticketId);
     } else {
       applyButtonState(btn, prevState, prevTitle);
-      alert('Push failed: ' + ((result && result.error) || 'Unknown error'));
+      alert((doUpdate ? 'Update' : 'Push') + ' failed: ' +
+        ((result && result.error) || 'Unknown error'));
     }
   }
 
@@ -538,6 +578,14 @@
     buildCombo(comboHost, (resolvedId) => {
       evt.ticketId = resolvedId;
       refreshTagSelect(resolvedId);
+      // The matched entry was detected against the previous ticket — it's now
+      // stale. Clear it and re-detect so the button state AND the update target
+      // both reflect the newly chosen ticket.
+      evt.matchEntry = null;
+      detectState(evt).then(({ state, title: t, matchEntry }) => {
+        evt.matchEntry = matchEntry || null;
+        applyButtonState(btn, state, t);
+      });
     }, ticketId);
     host.appendChild(comboHost);
     host.appendChild(tagHost);
@@ -559,8 +607,12 @@
     const row = editBtn.parentElement;
     row.insertBefore(host, row.firstChild);
 
-    // State-aware: refine the button once we've checked ClickUp
-    detectState(evt).then(({ state, title: t }) => applyButtonState(btn, state, t));
+    // State-aware: refine the button once we've checked ClickUp. Stash the
+    // matched entry (if any) on evt so a 'logged' click can UPDATE it in place.
+    detectState(evt).then(({ state, title: t, matchEntry }) => {
+      evt.matchEntry = matchEntry || null;
+      applyButtonState(btn, state, t);
+    });
   }
 
   function scan() {

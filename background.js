@@ -117,6 +117,56 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // ── ClickUp API: update an existing time entry in place (PUT) ──────────────
+  // Used by the GCal push button when an overlapping entry for the same ticket
+  // already exists — patches the matched timer instead of creating a duplicate.
+  if (message.type === 'UPDATE_TIME_ENTRY') {
+    const { timerId, ticketId, startTime, endTime, title, clickupToken, teamId, billable } = message;
+    (async () => {
+      try {
+        // Resolve custom task ID to internal task ID (so the entry stays linked
+        // to the right task even if the ticket field was changed).
+        const taskRes = await fetch(
+          `https://api.clickup.com/api/v2/task/${encodeURIComponent(ticketId)}?custom_task_ids=true&team_id=${teamId}`,
+          { headers: { Authorization: clickupToken } }
+        );
+        if (!taskRes.ok) {
+          const err = await taskRes.json().catch(() => ({}));
+          throw new Error(`Task lookup failed (${taskRes.status}): ${err.err || err.error || taskRes.statusText}`);
+        }
+        const task = await taskRes.json();
+        const taskId = task.id;
+
+        const start    = new Date(startTime).getTime();
+        const end      = new Date(endTime).getTime();
+        const duration = end - start;
+
+        // start+end must be sent together (per ClickUp). Tags use tag_action so
+        // we REPLACE rather than append — re-pushing won't stack tags. We only
+        // include the tags block when a tag is set, since tag use is gated to
+        // higher plans and an empty required block could be rejected.
+        const entryBody = { description: title, start, end, duration, tid: taskId, billable: billable !== false };
+        if (message.tag) entryBody.tags = [{ name: message.tag, tag_action: 'replace' }];
+
+        const entryRes = await fetch(
+          `https://api.clickup.com/api/v2/team/${teamId}/time_entries/${encodeURIComponent(timerId)}`,
+          {
+            method: 'PUT',
+            headers: { Authorization: clickupToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify(entryBody)
+          }
+        );
+        if (!entryRes.ok) {
+          const err = await entryRes.json().catch(() => ({}));
+          throw new Error(`Time entry update failed (${entryRes.status}): ${err.err || err.error || entryRes.statusText}`);
+        }
+        sendResponse({ success: true, taskName: task.name || null });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    })();
+    return true;
+  }
   // ── Fetch the workspace's time-entry tags (for content scripts) ────────────
   // Content scripts can't call the ClickUp API directly, so the GCal popover
   // routes tag fetching through here. Mirrors the popup's direct fetch +
