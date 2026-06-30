@@ -156,3 +156,41 @@
 }
 
 .clickup-option-info:hover { background: transparent; }
+
+/* Tag dropdown — sits between the ticket combo and the push button.
+   Inherits the same themed custom properties from .clickup-inject-host's
+   child .clickup-combo-host, so we re-declare them here for standalone use. */
+.clickup-tag-host {
+  --cu-field-bg:     #fff;
+  --cu-field-text:   #202124;
+  --cu-border:       #dadce0;
+  --cu-accent:       #1a73e8;
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .clickup-tag-host {
+    --cu-field-bg:   #2d2e30;
+    --cu-field-text: #e8eaed;
+    --cu-border:     #5f6368;
+    --cu-accent:     #8ab4f8;
+  }
+}
+
+.clickup-tag-select {
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 13px;
+  padding: 6px 8px;
+  max-width: 120px;
+  border: 1px solid var(--cu-border);
+  border-radius: 6px;
+  color: var(--cu-field-text);
+  background: var(--cu-field-bg);
+  cursor: pointer;
+}
+
+.clickup-tag-select:focus {
+  outline: none;
+  border-color: var(--cu-accent);
+}

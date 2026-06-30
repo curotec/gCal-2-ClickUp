@@ -117,6 +117,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // ── Fetch the workspace's time-entry tags (for content scripts) ────────────
+  // Content scripts can't call the ClickUp API directly, so the GCal popover
+  // routes tag fetching through here. Mirrors the popup's direct fetch +
+  // 10-minute cache so both surfaces stay consistent.
+  if (message.type === 'GET_TAGS') {
+    const { clickupToken, teamId } = message;
+    (async () => {
+      try {
+        const cached = await new Promise(resolve =>
+          chrome.storage.local.get(['enabledTags', 'cachedTags', 'cachedTagsTs'], resolve));
+        // User-filtered list takes priority (mirrors popup.js fetchTags()).
+        if (cached.enabledTags && cached.enabledTags.length) {
+          sendResponse({ tags: cached.enabledTags });
+          return;
+        }
+        // Fall back to the full cached list while it's still fresh.
+        if (cached.cachedTags && cached.cachedTagsTs && (Date.now() - cached.cachedTagsTs) < 600000) {
+          sendResponse({ tags: cached.cachedTags });
+          return;
+        }
+        if (!clickupToken || !teamId) { sendResponse({ tags: [] }); return; }
+        const res = await fetch(
+          `https://api.clickup.com/api/v2/team/${teamId}/time_entries/tags`,
+          { headers: { Authorization: clickupToken } }
+        );
+        if (!res.ok) { sendResponse({ tags: [] }); return; }
+        const data = await res.json();
+        const tags = (data.data || []).map(t => t.name).filter(Boolean).sort();
+        chrome.storage.local.set({ cachedTags: tags, cachedTagsTs: Date.now() });
+        sendResponse({ tags });
+      } catch (err) {
+        sendResponse({ tags: [], error: err.message });
+      }
+    })();
+    return true;
+  }
+
   // ── Resolve task names for a set of (custom) IDs ────────────────────────────
   if (message.type === 'GET_TASK_NAMES') {
     const { clickupToken, teamId, ids } = message;

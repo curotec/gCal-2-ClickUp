@@ -117,7 +117,15 @@ the extension popup.
    title it's **prefilled** so you can confirm it's correct; otherwise the field
    is empty. Either way it offers **live ClickUp search** (same as the popup: type
    4+ characters to search your assigned tasks, or pick from your frequent/favorite
-   tickets). Then click the ClickUp button to push.
+   tickets).
+5. A **tag dropdown** sits between the ticket field and the ClickUp button. Once a
+   valid ticket is set, it loads your workspace's time-entry tags and remembers the
+   tag you last used for that ticket (shared with the popup's per-ticket tag memory).
+   Pick a tag — or leave it on **No tag** — then click the ClickUp button to push.
+
+The ClickUp time-entry **description** is cleaned before pushing: any ticket ID in
+the event title (e.g. `CTK-1234`) is stripped out, matching the popup's behavior so
+the description reads as the plain event name.
 
 Pushed entries are marked billable by default and are recorded in your frequent-ticket
 history, just like popup imports.
@@ -132,12 +140,12 @@ history, just like popup imports.
 | File | Purpose |
 |---|---|
 | `manifest.json` | Extension manifest (MV3). Contains `{{GOOGLE_CLIENT_ID}}` placeholder; permissions; registers the popup, options page, and both content scripts |
-| `background.js` | Service worker. Handles Google OAuth and all ClickUp API calls (user lookup, fetch entries, task search, task-name resolution, import time entry) plus the ad-hoc timer |
+| `background.js` | Service worker. Handles Google OAuth and all ClickUp API calls (user lookup, fetch entries, task search, task-name resolution, **tag fetch**, import time entry) plus the ad-hoc timer |
 | `popup.html` / `popup.js` / `popup.css` | The toolbar popup: date picker, event list, CSV upload, ticket combos, billable toggles, import |
 | `options.html` / `options.js` / `options.css` | Settings page: ClickUp token, Team ID, skip list, debug mode, ticket-history reset, Google sign-out |
 | `content.js` | Minimal content script on ClickUp pages (liveness ping) |
-| `gcal-content.js` | Content script on `calendar.google.com`: injects the state-aware **→ ClickUp** push button into the event popover |
-| `gcal-content.css` | Styling for the injected button + inline ticket combo, matched to Google's native light popover |
+| `gcal-content.js` | Content script on `calendar.google.com`: injects the state-aware **→ ClickUp** push button into the event popover, with inline ticket combo and tag dropdown |
+| `gcal-content.css` | Styling for the injected button + inline ticket combo + tag dropdown, matched to Google's native light popover |
 | `build.js` | Injects the client ID from `config.json` into the manifest, copies all files to `dist/`, optionally zips |
 | `config.json.example` | Placeholder config shape (safe to commit) |
 | `.gitignore` | Ignores `config.json`, `dist/`, and `Temp/` |
@@ -151,6 +159,21 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v3.0.1
+Small follow-up to the Google Calendar push button (two field-tested fixes).
+
+- **Clean descriptions on push.** Pushing an event from the GCal popover now
+  strips the ticket ID (e.g. `CTK-1234`) out of the ClickUp time-entry
+  description, matching the popup importer's behavior. Previously the raw event
+  title — ticket ID included — was sent verbatim.
+- **Tag dropdown in the popover.** Added a tag selector between the ticket field
+  and the ClickUp button, mirroring the popup's tag logic: it loads the
+  workspace's time-entry tags (cached via the service worker) and remembers the
+  tag last used for each ticket through the shared `ticketTag` preference map.
+  GCal pushes previously had no way to set a tag.
+- New service-worker message: `GET_TAGS` (content scripts can't call the ClickUp
+  API directly, so tag fetching routes through `background.js`).
 
 ### v3.0.0
 Milestone release: consolidates the v2.11–v2.12 work and a full code-review pass.

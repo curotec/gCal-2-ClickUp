@@ -32,6 +32,16 @@
   const TICKET_REGEX = /\b([A-Z]+-\d+)\b/;
   const COMPLETE_TICKET_REGEX = /^[A-Z]+-\d+$/;
   const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+  // Strip ticket IDs (e.g. "CTK-1234") and surrounding separators from a title
+  // so the ClickUp time-entry description stays clean — mirrors popup.js
+  // cleanTitle() so both import surfaces behave identically.
+  function cleanTitle(raw) {
+    return (raw || '')
+      .replace(/\b[A-Z]+-\d+\b/g, '')
+      .replace(/^[\s|\-\u2013]+|[\s|\-\u2013]+$/g, '')
+      .trim() || raw;
+  }
   // icon16 inlined as a data URL so the content script needs no web_accessible_resources
   const ICON16_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAAC7UlEQVR4nDWTX4hUdRTHP+f3u/fOHXd2uuM6u7YJCi1RtFIEUSGKYRQRsYb1EG0iaj1EkOBjPbRQtA8L6UsQxKIYFUVkhU8+mCVRVBQWSKu2KW7Kjrs77p+Ze+fe3+/0MOOBc57O9wvf7/cciUol3frcJBse3EvqDKqCqKCiAKCAgKqAL5j65QCb8/+YbrR4+8+/Ce4fe5f6Y4doLjVJ1ilxAKqKotzmwIB2ByaOkcVl3rizDowgT04u6HLbMvaQsn9HhBEB78EaiEJQA3kGzoEY4nyVtekP6Hz5FVpNCNLcUi17DuwoUa9astRh4gh1Hj46gdgWuu8VMCGSt9FkEDn4Gosz3xC5BoEHSqEgQJZ5XBzimm38+19jfzxHVLmMdxfIX5qA8gDSSjElJRm/QVDMY4SeZgUTGvy/KxRvnkHOXMXvegK/exvh7KeUTr6Aaf6FhCGoxxYezR2BegUFsaBrjvydWcwli3/xcYJXH6aQPehZTzQzCT89TWfX7yAhiCICAdJNSh1I1WL3bIKlOuH4MKQ5qOB2vkc6GEF5PYQ1SOd72ULQgyMCWijlZxJChLXVDtIViE9bVEYn8A6yogAx3C6j2gMrWAtzl3POnU3pqwhxJMShUImFb/+5xcXmMoHp7iLdDvCC94INhWbDMXW4w5waZps52x+xeIFTV5SpmYCB/oKTOwuGrZKpIAqBc4vgLS4fJNkgPDtuOP6x48PjyvR3ntUazJUstSE4dI9lYzUmzSIKwCAEbugtbpkAzBFCM8BTz1tGRh2nv3dcWBDa/bB7RBh7wDI6ZFj55AQLp0+xciPmjuReglKY0Vid58gPx3h928tYsdS3wN67od3uPkNfCA7LlUabzhef0fr1Z/o3bcYUfch944/quu13MX/9JrVyP8Mb1+Nc77Bs12nvFBMYtJ1z+NgfjNqYZKDC0Ws3CS59/htbCkeydZBWnrGUNhExXaeLLoGook7weUGlVsH6iKNzi0ycv8j/P4dO3R/qHMsAAAAASUVORK5CYII=";
 
@@ -112,6 +122,57 @@
       if (taskName) names[ticketId] = taskName;
       chrome.storage.local.set({ ticketFrequency: freq, ticketNames: names });
     });
+  }
+
+  // ── Tags (mirror popup.js: cached via background, per-ticket memory) ───────
+  let _cachedTags = null;
+
+  async function fetchTags() {
+    if (_cachedTags) return _cachedTags;
+    const settings = await getSettings();
+    if (!settings.clickupToken || !settings.teamId) return [];
+    const r = await sendBg({
+      type: 'GET_TAGS',
+      clickupToken: settings.clickupToken,
+      teamId: settings.teamId
+    });
+    _cachedTags = (r && r.tags) || [];
+    return _cachedTags;
+  }
+
+  function getTagPreference(ticketId) {
+    return new Promise(resolve => {
+      chrome.storage.local.get(['ticketTag'], (r) => {
+        const map = r.ticketTag || {};
+        resolve(map[ticketId] || '');
+      });
+    });
+  }
+
+  function saveTagPreference(ticketId, tag) {
+    if (!ticketId) return;
+    chrome.storage.local.get(['ticketTag'], (r) => {
+      const map = r.ticketTag || {};
+      if (tag) map[ticketId] = tag; else delete map[ticketId];
+      chrome.storage.local.set({ ticketTag: map });
+    });
+  }
+
+  function buildTagSelect(selectedTag, tags) {
+    const sel = document.createElement('select');
+    sel.className = 'clickup-tag-select';
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = 'No tag';
+    sel.appendChild(empty);
+    tags.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      if (t === selectedTag) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    return sel;
   }
 
   // ── Live ClickUp search (reuses the popup's background handlers) ───────────
@@ -380,8 +441,9 @@
       ticketId: evt.ticketId,
       startTime: evt.times.startISO,
       endTime: evt.times.endISO,
-      title: evt.title,
+      title: cleanTitle(evt.title),
       billable: true,
+      tag: evt.tag || '',
       clickupToken: settings.clickupToken,
       teamId: settings.teamId
     });
@@ -428,7 +490,7 @@
     popover.setAttribute(MARKER, eventKey);
 
     const ticketId = (title.match(TICKET_REGEX) || [])[1] || null;
-    const evt = { title, times, ticketId };
+    const evt = { title, times, ticketId, tag: '' };
     dbg('injecting for event:', evt, 'attempt', attempt);
 
     const host = document.createElement('span');
@@ -440,13 +502,49 @@
     btn.type = 'button';
     applyButtonState(btn, 'clean', '');
 
-    // Layout: ticket input on the LEFT, push button to its right (see v2.12.4).
+    // Tag dropdown — lives between the ticket combo and the push button.
+    // Populated once tags load; its selected value is remembered per ticket
+    // (same `ticketTag` storage map the popup uses).
+    const tagHost = document.createElement('div');
+    tagHost.className = 'clickup-tag-host';
+
+    // (Re)build the tag <select> for the current resolved ticket, restoring its
+    // saved preference. Called on initial ticket and whenever it changes.
+    function refreshTagSelect(forTicketId) {
+      if (!forTicketId) {
+        tagHost.innerHTML = '';
+        evt.tag = '';
+        return;
+      }
+      Promise.all([fetchTags(), getTagPreference(forTicketId)]).then(([tags, savedTag]) => {
+        // Bail if the ticket changed again while we were loading.
+        if (evt.ticketId !== forTicketId) return;
+        tagHost.innerHTML = '';
+        if (!tags.length) { evt.tag = ''; return; }
+        const sel = buildTagSelect(savedTag, tags);
+        evt.tag = savedTag || '';
+        sel.addEventListener('change', (e) => {
+          evt.tag = e.target.value;
+          saveTagPreference(forTicketId, e.target.value);
+        });
+        tagHost.appendChild(sel);
+      });
+    }
+
+    // Layout: ticket input on the LEFT, tag select, then push button (see v2.12.4).
     // Always show the ticket field, prefilled with any detected ticket ID.
     const comboHost = document.createElement('div');
     comboHost.className = 'clickup-combo-host';
-    buildCombo(comboHost, (resolvedId) => { evt.ticketId = resolvedId; }, ticketId);
+    buildCombo(comboHost, (resolvedId) => {
+      evt.ticketId = resolvedId;
+      refreshTagSelect(resolvedId);
+    }, ticketId);
     host.appendChild(comboHost);
+    host.appendChild(tagHost);
     host.appendChild(btn);
+
+    // Prefill the tag select for any auto-detected ticket.
+    if (ticketId) refreshTagSelect(ticketId);
 
     btn.addEventListener('click', (e) => {
       e.preventDefault();
