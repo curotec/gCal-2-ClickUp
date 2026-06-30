@@ -112,16 +112,15 @@ the extension popup.
    - **icon only** (neutral) — nothing logged yet; clicking pushes immediately
    - **icon + green ✓** — the same ticket is already logged for that time
    - **icon + red ⚠** — a *different* ticket overlaps that time
-   In the **✓ state**, clicking offers to **update the existing entry in place**
-   (after a confirm showing the existing vs. new time window) rather than creating
-   a duplicate — start/end, description, billable, and tag are patched onto the
-   matched entry. In the **⚠ state**, clicking asks for confirmation before
-   creating a new (additional) entry.
+   In both the **✓ and ⚠ states the button is disabled**, so you can't create a
+   duplicate or overlapping entry. To log anyway, adjust the event time (or the
+   existing ClickUp entry) so they no longer overlap, then reopen the popover.
 4. The ticket-ID field is always shown. If a ticket ID is detected in the event
    title it's **prefilled** so you can confirm it's correct; otherwise the field
    is empty. Either way it offers **live ClickUp search** (same as the popup: type
    4+ characters to search your assigned tasks, or pick from your frequent/favorite
-   tickets).
+   tickets). Changing the ticket re-checks ClickUp and re-evaluates the button's
+   enabled/disabled state.
 5. A **tag dropdown** sits between the ticket field and the ClickUp button. Once a
    valid ticket is set, it loads your workspace's time-entry tags and remembers the
    tag you last used for that ticket (shared with the popup's per-ticket tag memory).
@@ -134,10 +133,10 @@ the description reads as the plain event name.
 Pushed entries are marked billable by default and are recorded in your frequent-ticket
 history, just like popup imports.
 
-> **How "update" picks an entry:** the ✓ state matches on **same ticket + any time
-> overlap** with the event's window. If more than one of your entries for that ticket
-> overlaps, the **first** match is updated. The confirm dialog shows that entry's time
-> range so you can see what's being changed before committing.
+> **When is the button disabled?** Detection matches on **time overlap** with the
+> event's window — same ticket → ✓ (would duplicate), different ticket → ⚠
+> (overlapping). Either way the push is blocked. This is a deliberately simple guard:
+> it prevents duplicates without trying to merge or update existing entries.
 
 > **Note:** Google Calendar's page markup is not a stable, documented API. If a
 > Google UI update ever hides the button or misreads an event's time, it can be
@@ -149,7 +148,7 @@ history, just like popup imports.
 | File | Purpose |
 |---|---|
 | `manifest.json` | Extension manifest (MV3). Contains `{{GOOGLE_CLIENT_ID}}` placeholder; permissions; registers the popup, options page, and both content scripts |
-| `background.js` | Service worker. Handles Google OAuth and all ClickUp API calls (user lookup, fetch entries, task search, task-name resolution, tag fetch, import time entry, **update time entry**) plus the ad-hoc timer |
+| `background.js` | Service worker. Handles Google OAuth and all ClickUp API calls (user lookup, fetch entries, task search, task-name resolution, tag fetch, import time entry) plus the ad-hoc timer |
 | `popup.html` / `popup.js` / `popup.css` | The toolbar popup: date picker, event list, CSV upload, ticket combos, billable toggles, import |
 | `options.html` / `options.js` / `options.css` | Settings page: ClickUp token, Team ID, skip list, debug mode, ticket-history reset, Google sign-out |
 | `content.js` | Minimal content script on ClickUp pages (liveness ping) |
@@ -169,24 +168,26 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
-### v3.0.2
-Google Calendar push button can now **update** an existing entry instead of duplicating it.
+### v3.0.3
+Reverted the v3.0.2 update-in-place experiment; replaced with a simpler duplicate guard.
 
-- **Update-in-place from the ✓ state.** When the push button detects that the same
-  ticket already has an overlapping time entry (the green ✓ state), clicking it now
-  offers to **update that entry** — patching start/end, description, billable, and
-  tag onto the existing entry via ClickUp's `PUT .../time_entries/{timer_id}` —
-  rather than creating a duplicate. A confirm dialog shows the existing vs. new time
-  window first. The ⚠ (different-ticket conflict) and neutral states still create a
-  new entry as before.
-- Match for the update target uses the existing **loose overlap** rule (same ticket +
-  any time overlap); the first overlapping entry wins, and its `id` is carried from
-  detection through to the update call. Changing the ticket in the popover re-detects
-  state so the update target never goes stale.
-- Tags are sent with `tag_action: 'replace'` on update, so re-pushing replaces rather
-  than stacks tags. The tag block is only included when a tag is set (tag use is gated
-  to higher ClickUp plans).
-- New service-worker message: `UPDATE_TIME_ENTRY`.
+- **Reverted update-in-place (v3.0.2).** Updating an existing entry via
+  `PUT .../time_entries/{timer_id}` did not reliably update the tag, so the whole
+  update path was removed (`UPDATE_TIME_ENTRY` handler and the create-vs-update
+  branching are gone). Behavior returns to v3.0.1's single create path.
+- **Disable the push button when an entry already exists.** In both the ✓ (same
+  ticket already logged) and ⚠ (different ticket overlapping) states, the push
+  button is now **disabled** rather than warn-but-allow. This is a simpler, reliable
+  way to prevent duplicate/overlapping entries. The neutral state stays enabled.
+  Changing the ticket re-checks ClickUp and re-evaluates the enabled/disabled state.
+- **Tag dropdown width** reduced to 100px (from 120px).
+
+### v3.0.2 _(superseded by v3.0.3)_
+Google Calendar push button could update an existing entry instead of duplicating it.
+
+- Update-in-place from the ✓ state via `PUT .../time_entries/{timer_id}`, with a
+  confirm showing the existing vs. new time window. **Reverted in v3.0.3** because the
+  tag was not reliably updated on the PUT.
 
 ### v3.0.1
 Small follow-up to the Google Calendar push button (two field-tested fixes).

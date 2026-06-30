@@ -45,17 +45,17 @@
 
 .clickup-push-btn.clickup-pushing { opacity: 0.6; }
 
-.clickup-push-btn:hover {
+.clickup-push-btn:hover:not(:disabled) {
   background: rgba(60, 64, 67, 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
-  .clickup-push-btn:hover { background: rgba(232, 234, 237, 0.12); }
+  .clickup-push-btn:hover:not(:disabled) { background: rgba(232, 234, 237, 0.12); }
 }
 
 .clickup-push-btn:disabled {
   opacity: 0.6;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 /* State accents — the icon stays full-color; the glyph carries the state color */
@@ -182,7 +182,8 @@
   font-family: Roboto, Arial, sans-serif;
   font-size: 13px;
   padding: 6px 8px;
-  max-width: 120px;
+  width: 100px;
+  max-width: 100px;
   border: 1px solid var(--cu-border);
   border-radius: 6px;
   color: var(--cu-field-text);
