@@ -857,6 +857,11 @@ document.getElementById('importBtn').addEventListener('click', async () => {
     const manualInput  = document.querySelector('.ticket-manual[data-index="' + i + '"]');
     const billableCheck = document.querySelector('.billable-check[data-index="' + i + '"]');
     const validIcon    = document.querySelector('.ticket-valid-icon[data-index="' + i + '"]');
+    // Read the currently-selected tag from this row's dropdown (if shown). This
+    // was dropped from the row read during the ticket-search rework, which is why
+    // imported entries stopped carrying tags.
+    const tagSelect    = document.querySelector('.tag-select-wrap[data-index="' + i + '"] select');
+    const tag          = tagSelect ? tagSelect.value : '';
     const titleAndDesc = (evt.summary || '') + ' ' + (evt.description || '');
     const autoTicket   = (titleAndDesc.match(TICKET_REGEX) || [])[1] || null;
     const manualTicket = manualInput ? manualInput.value.trim().toUpperCase() : null;
@@ -865,6 +870,7 @@ document.getElementById('importBtn').addEventListener('click', async () => {
     return Object.assign({}, evt, {
       ticketId: isInvalid ? null : (autoTicket || manualTicket || null),
       billable: billableCheck ? billableCheck.checked : true,
+      tag,
       _index: i
     });
   });

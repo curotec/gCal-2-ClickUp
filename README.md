@@ -174,6 +174,17 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v3.0.6
+Bugfix: popup importer was not attaching tags to created time entries.
+
+- **Fixed missing tags on import.** In the popup importer, the tag you selected from a
+  row's dropdown was saved as a per-ticket *preference* but never read back when the
+  import ran — so every entry was created with no tag. The row-read at import time now
+  reads the tag select's current value into the entry. (Regression from the
+  ticket-search rework, which reshaped how each row is read at import time; the tag
+  read was dropped then.) The background `IMPORT_TIME_ENTRY` handler was correct all
+  along — it only ever received an empty tag.
+
 ### v3.0.5
 Delete the blocking ClickUp entry straight from the Google Calendar popover.
 
