@@ -616,6 +616,13 @@
     const comboHost = document.createElement('div');
     comboHost.className = 'clickup-combo-host';
     const ticketInput = buildCombo(comboHost, (resolvedId) => {
+      // resolvedId is null while the user is mid-search (typing a partial term
+      // that isn't yet a complete ticket pattern). In that case do NOT touch
+      // evt.ticketId or re-run detection: a "clean" result would call
+      // clearLoggedDisplay() and overwrite the input with the empty ticket,
+      // wiping whatever the user is typing. Only react once a ticket is
+      // actually resolved (complete pattern typed, or option clicked).
+      if (!resolvedId) return;
       evt.ticketId = resolvedId;
       // Leaving any read-only logged view: re-enable editing before re-checking.
       loggedDisplayActive = false;

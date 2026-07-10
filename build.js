@@ -2,7 +2,7 @@
 /**
  * build.js
  * Reads config.json and injects values into manifest.json,
- * then zips the extension into dist/gcal-clickup-importer-vX_X_X.zip
+ * then zips the extension into dist/gcal-clickup-importer-vX.X.X.zip
  *
  * Usage:
  *   node build.js
@@ -87,8 +87,8 @@ console.log('  client_id:', config.google_client_id);
 // ── 4. Optionally zip dist/ ───────────────────────────────────────────────────
 try {
   const archiver = require('archiver');
-  // Name the zip from the (injected) manifest version: gcal-clickup-importer-vX_X_X.zip
-  const zipName  = 'gcal-clickup-importer-v' + parsed.version.replace(/\./g, '_') + '.zip';
+  // Name the zip from the (injected) manifest version: gcal-clickup-importer-vX.X.X.zip
+  const zipName  = 'gcal-clickup-importer-v' + parsed.version + '.zip';
   const zipPath  = path.join(DIST, zipName);
   const output   = fs.createWriteStream(zipPath);
   const archive  = archiver('zip', { zlib: { level: 9 } });

@@ -597,7 +597,7 @@ function renderEvents(events, skipList, clickupEntries) {
           ' \u00a0\u00b7\u00a0 ' + durationLabel(start, end) + '</div>' +
         (!skipped ?
           '<div class="ticket-meta-row">' +
-            '<label class="billable-label"><input type="checkbox" class="billable-check" data-index="' + i + '" checked /> Billable</label>' +
+            '<label class="billable-label"><input type="checkbox" class="billable-check" data-index="' + i + '"' + (evt.billable === false ? '' : ' checked') + ' /> Billable</label>' +
             '<button class="star-btn" data-ticket="' + (ticketId || '') + '" title="Favorite this ticket">\u2606</button>' +
           '</div>' : '') +
         (!skipped ?
@@ -938,7 +938,7 @@ document.getElementById('cancelBtn').addEventListener('click', () => {
 
 // ── CSV Upload ────────────────────────────────────────────────────────────────
 
-const CSV_HEADER_KEYWORDS = ['title', 'start', 'end', 'tag'];
+const CSV_HEADER_KEYWORDS = ['title', 'start', 'end', 'ticket', 'billable', 'tag'];
 
 function parseCSVLine(line) {
   const fields = [];
@@ -1000,7 +1000,7 @@ function parseCSV(text) {
     colMap = buildColumnMap(firstFields);
     dataStart = 1;
   } else {
-    colMap = { title: 0, start: 1, end: 2, tag: 3 };
+    colMap = { title: 0, start: 1, end: 2, ticket: 3, billable: 4, tag: 5 };
     dataStart = 0;
   }
 
@@ -1017,7 +1017,12 @@ function parseCSV(text) {
     const title    = fields[colMap.title];
     const startRaw = fields[colMap.start];
     const endRaw   = fields[colMap.end];
+    const ticket   = colMap.ticket !== undefined ? (fields[colMap.ticket] || '').trim().toUpperCase() : '';
+    const billRaw  = colMap.billable !== undefined ? (fields[colMap.billable] || '').trim().toLowerCase() : '';
     const tag      = colMap.tag !== undefined ? (fields[colMap.tag] || '') : '';
+
+    // billable: blank defaults to true; only explicit false/no/0 disable it
+    const billable = !(billRaw === 'false' || billRaw === 'no' || billRaw === '0');
 
     if (!title) { errors.push('Row ' + rowNum + ': missing title.'); continue; }
     if (!startRaw || !isValidISO(startRaw)) {
@@ -1035,12 +1040,17 @@ function parseCSV(text) {
       errors.push('Row ' + rowNum + ': end time must be after start time.'); continue;
     }
 
-    const summary = tag ? title + ' ' + tag : title;
+    // Prepend ticket into the summary so the downstream TICKET_REGEX detects it,
+    // exactly as it would for a Google Calendar event with the code in its title.
+    let summary = title;
+    if (ticket) summary = ticket + ' ' + summary;
+    if (tag)    summary = summary + ' ' + tag;
     events.push({
       summary,
       description: tag || '',
       start: { dateTime: startDt.toISOString() },
       end:   { dateTime: endDt.toISOString() },
+      billable,
       _csvRow: rowNum
     });
   }

@@ -46,7 +46,7 @@ node build.js
 
 This injects your client ID into `manifest.json` and copies all files to `dist/`.
 If you have `archiver` installed (`npm install archiver`), it also produces
-`dist/gcal-clickup-importer-vX_X_X.zip` (named from the manifest version, with
+`dist/gcal-clickup-importer-vX.X.X.zip` (named from the manifest version, with
 the `icons/` folder included).
 
 ### 3. Install in Chrome
@@ -82,23 +82,43 @@ Click the **📄 CSV** button next to "Load Events" and select a `.csv` file.
 **CSV format:**
 
 ```csv
-title,start,end,tag
-Standup,2026-06-24T09:00:00-03:00,2026-06-24T09:15:00-03:00,CTK-1234
-Feature work,2026-06-24T10:00:00,2026-06-24T12:00:00,CTK-5678
+title,start,end,ticket,billable,tag
+Standup,2026-06-24T09:00:00-03:00,2026-06-24T09:15:00-03:00,CTK-6752,true,
+Feature work,2026-06-24T10:00:00-03:00,2026-06-24T12:00:00-03:00,CTK-5678,false,
 ```
 
 | Column | Required | Notes |
 |---|---|---|
-| `title` | Yes | Event title |
+| `title` | Yes | Event title. Do **not** embed the ticket ID here — use the `ticket` column |
 | `start` | Yes | ISO 8601 datetime. Explicit TZ offset honored; no offset = local time |
 | `end` | Yes | ISO 8601 datetime. Must be after `start` |
-| `tag` | No | Ticket ID (e.g. `CTK-1234`). Appended to title for ticket detection |
+| `ticket` | No | Ticket ID (e.g. `CTK-1234`). Injected into the title so it's detected the same way a Google Calendar event's title code would be. Case-insensitive (lowercased input is upper-cased) |
+| `billable` | No | `true`/`false` (also accepts `yes`/`no`, `1`/`0`). **Blank defaults to billable (`true`)**; only an explicit false value marks the row non-billable |
+| `tag` | No | ClickUp tag name for the entry |
 
-- **Header row** is optional. Auto-detected (case-insensitive) when the first row contains `title`, `start`, `end`; otherwise columns are parsed positionally (title, start, end, tag).
+- **Unknown columns are ignored.** Extra columns such as `confidence` or `reason` (e.g. from an AI-proposed timesheet — see below) pass through harmlessly, so you can upload a review file without stripping helper columns first.
+- **Header row** is optional. Auto-detected (case-insensitive) when the first row contains `title`, `start`, `end`; columns are then matched **by name, in any order**. With no header, columns are parsed positionally in the order `title, start, end, ticket, billable, tag`.
+- **One day per file.** The date picker auto-sets to the first row's date, and existing-entry conflict detection is scoped to that day — mixing dates in one file will break conflict checks.
 - **Date picker** is auto-set to the date of the first CSV row.
 - **CSV replaces** any previously loaded calendar events.
 - **Validation** blocks the entire import if any row is malformed — the error identifies the row number and what's wrong.
 - **Render pipeline** is identical to calendar events: skip list, ClickUp duplicate detection, ticket combos, billable toggles, click-to-edit titles.
+
+#### AI-proposed timesheets
+
+The `ticket`, `billable`, and unknown-column handling above are designed so an
+assistant (e.g. Claude with Google Calendar access) can read a day's events and
+propose a ready-to-upload CSV. A proposed file typically adds two helper columns
+the importer ignores:
+
+| Helper column | Purpose |
+|---|---|
+| `confidence` | `high` / `medium` / `low` — how sure the assistant is of the ticket guess |
+| `reason` | Short note explaining the match (which rule fired, or why it's a guess) |
+
+Review the proposed file, correct any wrong ticket IDs, and upload it as-is —
+the helper columns are ignored at import time. Feeding the corrected file back
+to the assistant improves future guesses (a manual correction-history loop).
 
 ### Push a single event from Google Calendar
 
@@ -173,6 +193,19 @@ then reload the extension at `chrome://extensions`.
 ---
 
 ## Changelog
+
+### v3.1.1
+- **Fixed: live ticket search in the Google Calendar push panel was unusable.** Typing a search term (anything not yet a complete `CTK-1234` pattern) erased itself before the search could run. Cause: each keystroke resolved to a null ticket, which triggered a "clean" state re-detection that rewrote the input to the empty ticket value. The push panel's resolve callback now ignores null (mid-search) values and only re-detects once a ticket is actually resolved — by typing a complete pattern or picking a dropdown option.
+- **Build/packaging: zip filename now uses dots**, `gcal-clickup-importer-vX.X.X.zip` (e.g. `gcal-clickup-importer-v3.1.1.zip`), previously underscores. `build.js` and README references updated to match.
+- No changes to the popup CSV importer, background handlers, or the timer.
+
+### v3.1.0
+- **CSV: dedicated `ticket` column.** Ticket IDs now live in their own column instead of being embedded in the title. The value is injected into the title internally so downstream detection is unchanged. Case-insensitive.
+- **CSV: `billable` column.** Accepts `true`/`false` (also `yes`/`no`, `1`/`0`). Blank defaults to billable; an explicit false value renders the row's billable toggle unchecked and imports it as non-billable.
+- **CSV: unknown columns are ignored.** Extra columns like `confidence` and `reason` pass through untouched, so an AI-proposed review file can be uploaded without stripping helper columns.
+- Header columns are now matched by name in any order (previously fixed position). Headerless positional order updated to `title, start, end, ticket, billable, tag`.
+- Documented the AI-proposed-timesheet workflow and the one-day-per-file requirement in the README.
+- No changes to `background.js`, the GCal push button, or the timer.
 
 ### v3.0.6
 Bugfix: popup importer was not attaching tags to created time entries.
@@ -282,7 +315,7 @@ Milestone release: consolidates the v2.11–v2.12 work and a full code-review pa
 - Removed unused `scripting` permission; deduped `host_permissions` and the
   ClickUp content-script match (`*.clickup.com` already covers `curotec`).
 - `build.js`: zip is now named from the manifest version
-  (`gcal-clickup-importer-vX_X_X.zip`) and **includes the `icons/` folder**
+  (`gcal-clickup-importer-vX.X.X.zip`) and **includes the `icons/` folder**
   (previously omitted from the zip).
 - Removed dead/duplicate CSS (`.ticket-input-row` in popup.css; the superseded
   pre-drag-and-drop `.tag-checklist`/`.tag-check-item` block in options.css).
