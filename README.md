@@ -194,6 +194,12 @@ then reload the extension at `chrome://extensions`.
 
 ## Changelog
 
+### v3.1.2
+- **Fixed: duplicated options-page sections.** The "Recurrent Events Rules" and "Tag Manager" sections each appeared twice in `options.html`. Because HTML element IDs must be unique, `getElementById` bound the logic to the first copy only, leaving the second copy of each as a dead, broken-looking shell.
+  - The duplicate "Recurrent Events Rules" box (the second one) is removed.
+  - The **Tag Manager now loads and refreshes correctly.** Its failure to refresh (while still showing previously selected tags) was caused by the same duplicate-ID collision, not a fault in the tag-loading logic — removing the duplicate section restores refresh. Kept the copy whose hint includes the "drag to reorder" note.
+- Options-page-only change. No changes to the popup, `background.js`, the GCal push panel, the CSV importer, or the timer.
+
 ### v3.1.1
 - **Fixed: live ticket search in the Google Calendar push panel was unusable.** Typing a search term (anything not yet a complete `CTK-1234` pattern) erased itself before the search could run. Cause: each keystroke resolved to a null ticket, which triggered a "clean" state re-detection that rewrote the input to the empty ticket value. The push panel's resolve callback now ignores null (mid-search) values and only re-detects once a ticket is actually resolved — by typing a complete pattern or picking a dropdown option.
 - **Build/packaging: zip filename now uses dots**, `gcal-clickup-importer-vX.X.X.zip` (e.g. `gcal-clickup-importer-v3.1.1.zip`), previously underscores. `build.js` and README references updated to match.
